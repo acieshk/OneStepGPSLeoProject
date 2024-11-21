@@ -1,13 +1,25 @@
 <template>
 	<div class="device-list-container">
-		<el-table
-			:data="devices"
-			style="width: 100%"
-			height="100%"
-			:highlight-current-row="true"
-			@current-change="handleCurrentChange"
-			@row-click="handleRowClick"  
+	  <div class="search-container">
+		<el-input
+		  v-model="searchTerm"
+		  placeholder="Search devices..."
+		  clearable
+		  @input="filterDevices"
 		>
+		  <template #prefix>
+			<el-icon><Search /></el-icon>
+		  </template>
+		</el-input>
+	  </div>
+	  <el-table
+		:data="filteredDevices"
+		style="width: 100%"
+		height="100%"
+		:highlight-current-row="true"
+		@current-change="handleCurrentChange"
+		@row-click="handleRowClick"  
+	  >
 		<el-table-column label="Visibility" width="100">
 		  <template #header>
 			<el-checkbox
@@ -24,28 +36,37 @@
 		  </template>
 		</el-table-column>
 		<el-table-column label="Map" width="60">
-			<template #default="scope">
-				<div class="map-icon-cell" @click.stop="centerMapOnDevice(scope.row)">
-					<span
-						class="map-icon"
-						:style="{
-							'background-color': getDeviceColor(scope.row.device_id),
-							'border-radius': '50%',
-							'display': 'inline-block',
-							'width': '12px',
-							'height': '12px',
-						}"
-					></span>
-				</div>
-			</template>
-		</el-table-column>
-		<el-table-column label="Name" min-width="180">
 		  <template #default="scope">
-			<div class="device-name">{{ scope.row.display_name }}</div>
-			<div class="device-id">{{ scope.row.device_id }}</div>
+			<div 
+			  class="map-icon-cell" 
+			  @click.stop="centerMapOnDevice(scope.row)"
+			>
+			<svg 
+				class="map-icon" 
+				width="48" 
+				height="72" 
+				viewBox="0 0 24 36" 
+				xmlns="http://www.w3.org/2000/svg">
+				<path 	
+					d="M12 0C5.4 0 0 5.4 0 12c0 7.2 12 24 12 24s12-16.8 12-24c0-6.6-5.4-12-12-12z" 
+					:fill="scope.row.color || getDeviceColor(scope.row.device_id)" 
+					stroke="white" 
+					stroke-width="2"/>
+				<circle 
+					cx="12" 
+					cy="12" 
+					r="4" 
+					fill="white"/>
+				</svg>
+			</div>
 		  </template>
 		</el-table-column>
-  
+		<el-table-column label="Name" min-width="180">
+        <template #default="scope">
+          <div class="device-name">{{ scope.row.display_name }}</div>
+          <div class="device-id">{{ scope.row.device_id }}</div>
+        </template>
+      </el-table-column>
 		<el-table-column label="Status" width="120">
 		  <template #default="scope">
 			<div class="status-cell">
@@ -98,30 +119,10 @@
   </template>
   
   <script setup lang="ts">
-  import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
+import { Search } from '@element-plus/icons-vue';
+import { Device } from '@/App.vue'; 
   
-
-  interface Device {
-  device_id: string;
-  display_name: string;
-  online: boolean;
-  latest_device_point?: {
-    lat: number;
-    lng: number;
-    speed: number;
-    dt_tracker: string;
-    device_point_detail?: {
-      external_volt: number;
-    };
-    device_state?: {
-      fuel_percent: number;
-      odometer: {
-        value: number;
-        unit: string;
-      };
-    };
-  };
-}
   
 const props = defineProps<{
   devices: Device[];
@@ -133,6 +134,22 @@ const emit = defineEmits<{
   (e: 'update-device-color', deviceId: string, color: string): void;
   (e: 'update-device-visibility', deviceId: string, visible: boolean): void;
 }>();
+
+// Search functionality
+const searchTerm = ref('');
+const filteredDevices = computed(() => {
+  if (!searchTerm.value) return props.devices;
+  
+  const searchLower = searchTerm.value.toLowerCase();
+  return props.devices.filter(device => 
+    device.display_name.toLowerCase().includes(searchLower) ||
+    device.device_id.toLowerCase().includes(searchLower)
+  );
+});
+
+const filterDevices = () => {
+  // Additional filtering logic if needed
+};
 
 // State for color picker and visibility
 const deviceColors = ref<{ [key: string]: string }>({});
@@ -150,8 +167,10 @@ const allVisible = computed(() => {
 const noneVisible = computed(() => {
   return props.devices.every(device => !deviceVisibility.value[device.device_id]);
 });
+
+// Device color logic
 const getDeviceColor = (deviceId: string) => {
-    return deviceColors.value[deviceId] || '#1976D2'; // Provide a default color
+  return props.devices.find(d => d.device_id === deviceId)?.color || '#1976D2';
 };
 
 const centerMapOnDevice = (device: Device) => {
@@ -184,7 +203,8 @@ onMounted(() => {
     const storedVisibility = localStorage.getItem(`deviceVisibility-${device.device_id}`);
     deviceVisibility.value[device.device_id] = storedVisibility ? JSON.parse(storedVisibility) : true;
 
-    deviceColors.value[device.device_id] = '#1976D2'; // Default color
+    // Use device's color or default
+    deviceColors.value[device.device_id] = device.color || '#1976D2';
   });
 });
 
@@ -245,6 +265,12 @@ onMounted(() => {
 	overflow: hidden;
   }
   
+  .search-container {
+	padding: 10px;
+	background: white;
+	border-bottom: 1px solid #e0e0e0;
+  }
+  
   .map-icon-cell {
 	position: relative;
 	width: 40px;
@@ -300,9 +326,7 @@ onMounted(() => {
 	}
 
 
-	.map-icon-cell .map-icon{ /* Added some basic styling */
-		width: 12px;          
-		height: 12px;          
+	.map-icon-cell .map-icon{ 
 		display: inline-block; 
 		border-radius: 50%;  
 	}

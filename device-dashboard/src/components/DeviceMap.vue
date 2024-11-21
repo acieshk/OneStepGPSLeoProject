@@ -18,6 +18,7 @@
   import "leaflet/dist/leaflet.css";
   import * as L from 'leaflet';
   import { LMap, LTileLayer, LMarker } from "@vue-leaflet/vue-leaflet";
+  import { Device } from '@/App.vue';
   
   const deviceColors = [
 	'#E53935', '#1E88E5', '#43A047', '#FB8C00', '#8E24AA',
@@ -30,14 +31,7 @@
 	iconUrl: new URL('leaflet/dist/images/marker-icon.png', import.meta.url).href,
 	shadowUrl: new URL('leaflet/dist/images/marker-shadow.png', import.meta.url).href,
   });
-  
-  interface Device {
-	device_id: string;
-	display_name: string;
-	online: boolean;
-	latest_device_point?: { lat: number; lng: number; speed: number; device_point_detail?: { external_volt: number }; device_state?: { fuel_percent: number } };
-  }
-  
+    
   const props = defineProps<{
 	devices: Device[];
 	selectedDevice: Device | null;
@@ -46,23 +40,27 @@
   
   const visibleDevices = computed(() => props.devices.filter(device => props.deviceVisibility[device.device_id]));
   
-  const getDeviceColor = (deviceId: string) => deviceColors[props.devices.findIndex(d => d.device_id === deviceId) % deviceColors.length];
+  const getDeviceColor = (deviceId: string) => {
+  const device = props.devices.find(d => d.device_id === deviceId);
+  return device?.color || '#1976D2'; // Default color if not specified
+};
+
+const getDeviceIcon = (device: Device) => {
+  const color = getDeviceColor(device.device_id);
+  const scale = isSelected(device) ? 1.2 : 1;
+  return L.divIcon({
+    className: 'custom-div-icon',
+    html: `<svg width="${24 * scale}" height="${36 * scale}" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg"><path d="M12 0C5.4 0 0 5.4 0 12c0 7.2 12 24 12 24s12-16.8 12-24c0-6.6-5.4-12-12-12z" fill="${color}" stroke="white" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="white"/></svg>`,
+    iconSize: [24 * scale, 36 * scale],
+    iconAnchor: [12 * scale, 36 * scale],
+    popupAnchor: [0, -36 * scale]
+  });
+};
   
-  const getDeviceIcon = (device: Device) => {
-	const color = getDeviceColor(device.device_id);
-	const scale = isSelected(device) ? 1.2 : 1;
-	return L.divIcon({
-	  className: 'custom-div-icon',
-	  html: `<svg width="${24 * scale}" height="${36 * scale}" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg"><path d="M12 0C5.4 0 0 5.4 0 12c0 7.2 12 24 12 24s12-16.8 12-24c0-6.6-5.4-12-12-12z" fill="${color}" stroke="white" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="white"/></svg>`,
-	  iconSize: [24 * scale, 36 * scale],
-	  iconAnchor: [12 * scale, 36 * scale],
-	  popupAnchor: [0, -36 * scale]
-	});
-  };
-  
-  const emit = defineEmits<{
+const emit = defineEmits<{
 	(e: 'select-device', device: Device): void;
-  }>();
+	}>();
+  
   
   const mapRef = ref();
   const defaultCenter = [34.0522, -118.2437];

@@ -1,0 +1,20 @@
+Done - Fix color
+- Add a header to the devicemap view. Display basic info on header when clicked
+- Add Dialog to edit device detail
+Done - Add sorting/filter to device list. 
+- After Filter, device Map need to reflect changes
+- Test Saving data to the mongo database.
+- Test Refreshing mongo database
+- Bash script to run both server and setup configuration.
+- USer preference: odometer/Speed: Change to km/h vs miles
+Future idea
+- lat and lng is meaningless to most users. Google map Reverse GeoCoding would be a good choice.
+- Speed from API is shown as km/h, 
+which is not the default units for US users. 
+I provded a user preference button to switch from km to mile.
+It is currently use browser storage to save preference.
+With enough user preference like language, units, etc. Those should be saved 
+in DB as a seperate user preference. 
+- At this moment, color for each device is randomly generated and reused.
+If there are many devices at close approximation, it could cause confusion.
+Possible solution is to let User freely choose color or avoid similar color within certain distance

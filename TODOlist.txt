@@ -18,3 +18,18 @@ in DB as a seperate user preference.
 - At this moment, color for each device is randomly generated and reused.
 If there are many devices at close approximation, it could cause confusion.
 Possible solution is to let User freely choose color or avoid similar color within certain distance
+Future Enhancement
+1. **Server-Side Updates**
+   - Implement a background service in Go to poll the OneStepGPS API
+   - Use goroutines for concurrent processing
+   - Update local database with new device information
+
+2. **Client Notification System**
+   - Implement WebSocket connection for real-time updates
+   - Fallback to SSE (Server-Sent Events) for simpler implementation
+   - Add reconnection logic for connection stability
+
+3. **Performance Considerations**
+   - Implement rate limiting for API calls
+   - Add caching layer for frequently accessed data
+   - Optimize database queries for real-time updates

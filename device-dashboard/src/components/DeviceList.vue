@@ -15,15 +15,22 @@
 				<el-table-column label="Visibility" width="100">
 					<template #header>
 						<div class="visibility-icon-container" @click="toggleAllVisibility">
-						<i v-if="anyVisible" class="fas fa-eye"></i>
-						<i v-else class="fas fa-eye-slash"></i>
-						<div style="margin-left: 5px; vertical-align: middle;">{{ visibleDevicesCount }} / {{ totalDevicesCount }}</div> </div>
+							<i v-if="anyVisible" class="fas fa-eye"></i>
+							<i v-else class="fas fa-eye-slash"></i>
+							<div style="margin-left: 5px; vertical-align: middle;">{{ visibleDevicesCount }} / {{
+								totalDevicesCount }}</div>
+						</div>
 					</template>
 					<template #default="scope">
 						<div class="visibility-icon-container" @click="toggleDeviceVisibility(scope.row)">
 							<i v-if="deviceVisibility[scope.row.device_id]" class="fas fa-eye"></i>
 							<i v-else class="fas fa-eye-slash"></i>
 						</div>
+					</template>
+				</el-table-column>
+				<el-table-column label="Actions" width="120"> <!-- New Column -->
+					<template #default="scope">
+						<el-button size="small" @click="openEditDialog(scope.row)">Edit</el-button>
 					</template>
 				</el-table-column>
 				<el-table-column label="Name" min-width="180">
@@ -89,6 +96,8 @@
 				</el-table-column>
 			</el-table>
 		</div>
+		<device-edit-dialog v-model="editDialogVisible" :device-to-edit="deviceToEdit"
+			@device-updated="handleDeviceUpdated"></device-edit-dialog>
 	</div>
 </template>
 
@@ -97,6 +106,8 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { Search } from '@element-plus/icons-vue';
 import { Device } from '@/App.vue';
 import { convertUnits } from '@/utils/UnitConverter';
+import DeviceEditDialog from './DeviceEditDialog.vue';
+import { ElMessage } from 'element-plus';
 
 const props = defineProps<{
 	devices: Device[];
@@ -164,7 +175,7 @@ const noneVisible = computed(() => {
 });
 
 const totalDevicesCount = computed(() => {
-  return props.devices.length; 
+	return props.devices.length;
 });
 
 const visibleDevicesCount = computed(() => {
@@ -258,6 +269,34 @@ const formatDateTime = (dateString?: string): string => {
 	if (!dateString) return 'N/A';
 	return new Date(dateString).toLocaleString();
 };
+
+
+
+
+
+const editDialogVisible = ref(false);
+const deviceToEdit = ref<Device | null>(null); // Store device to edit
+
+
+const openEditDialog = (device: Device) => {
+	deviceToEdit.value = device;
+	editDialogVisible.value = true;
+};
+
+const handleDeviceUpdated = (updatedDevice: Device) => {
+	// Find the index of the updated device in the devices array
+	const index = props.devices.findIndex(d => d.device_id === updatedDevice.device_id);
+
+	if (index !== -1) {
+		// Update the device in the array
+		props.devices.splice(index, 1, updatedDevice);
+
+	}
+
+	ElMessage.success("Device information updated")
+};
+
+
 </script>
 
 <style scoped>
@@ -278,6 +317,12 @@ const formatDateTime = (dateString?: string): string => {
 	overflow-x: auto;
 }
 
+.table-wrapper {
+  width: fit-content; 
+  min-width: 100%;   
+  margin: 0 auto; 
+}
+
 .search-container {
 	padding: 10px;
 	background: white;
@@ -285,8 +330,9 @@ const formatDateTime = (dateString?: string): string => {
 }
 
 .name-status-container {
-  display: flex;
-  align-items: stretch; /* Stretch to occupy full height */
+	display: flex;
+	align-items: stretch;
+	/* Stretch to occupy full height */
 }
 
 .map-icon-cell {
@@ -304,10 +350,11 @@ const formatDateTime = (dateString?: string): string => {
 
 
 .map-icon {
-  /* Styles for the map icon */
-  width: 24px;
-  height: 36px; /* Maintain aspect ratio */
-  display: inline-block;
+	/* Styles for the map icon */
+	width: 24px;
+	height: 36px;
+	/* Maintain aspect ratio */
+	display: inline-block;
 }
 
 .name-status {

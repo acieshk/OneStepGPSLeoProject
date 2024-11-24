@@ -12,22 +12,28 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // Config represents the configuration structure for the application
 type Config struct {
-	ServerPort     string `json:"server_port"`
-	MongoDBURL     string `json:"mongodb_url"`
-	MongoDBPort    string `json:"mongodb_port"`
-	DatabaseName   string `json:"database_name"`
-	CollectionName string `json:"collection_name"`
-	APIKey         string `json:"api_key"` // API key for external API access
-	APIURL         string `json:"api_url"` // Base URL for the API
-	FrontendURL    string `json:"frontend_url"`
-	FrontendPort   string `json:"frontend_port"`
+	ServerPort           string `json:"server_port"`
+	MongoDBURL           string `json:"mongodb_url"`
+	MongoDBPort          string `json:"mongodb_port"`
+	DatabaseName         string `json:"database_name"`
+	DeviceCollectionName string `json:"device_collection_name"`
+	UserCollectionName   string `json:"user_collection_name"`
+	APIKey               string `json:"api_key"` // API key for external API access
+	APIURL               string `json:"api_url"` // Base URL for the API
+	FrontendURL          string `json:"frontend_url"`
+	FrontendPort         string `json:"frontend_port"`
 }
+
+// Global variables for MongoDB collections
+var devicesCollection *mongo.Collection
+var userPreferencesCollection *mongo.Collection
 
 // Global variable to hold the MongoDB client
 var client *mongo.Client
@@ -51,21 +57,24 @@ func loadConfig(filename string) (Config, error) {
 }
 
 // initMongoDB initializes the MongoDB client and establishes a connection
-func initMongoDB(mongoURI string) error {
-	var err error
-	clientOptions := options.Client().ApplyURI(mongoURI)
-	client, err = mongo.Connect(context.TODO(), clientOptions)
+func initMongoDB(config Config) (*mongo.Client, error) {
+	// Use config.DatabaseName here to get the database
+	clientOptions := options.Client().ApplyURI(fmt.Sprintf("%s:%s", config.MongoDBURL, config.MongoDBPort))
+	client, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// Check the connection
 	err = client.Ping(context.TODO(), nil)
+
 	if err != nil {
-		return err
+		return nil, err
 	}
-	fmt.Println("Connected to MongoDB!")
-	return nil
+
+	devicesCollection = client.Database(config.DatabaseName).Collection(config.DeviceCollectionName)
+	userPreferencesCollection = client.Database(config.DatabaseName).Collection(config.UserCollectionName) // Initialize the user preferences collection
+
+	return client, nil
 }
 
 func fetchAndStoreDevices(c *gin.Context, config Config) {
@@ -101,8 +110,7 @@ func fetchAndStoreDevices(c *gin.Context, config Config) {
 	}
 
 	// Get the devices collection
-	collection := client.Database(config.DatabaseName).Collection(config.CollectionName)
-
+	collection := client.Database(config.DatabaseName).Collection(config.DeviceCollectionName)
 	// Clear existing devices
 	deleteResult, err := collection.DeleteMany(context.TODO(), bson.D{})
 	if err != nil {
@@ -131,7 +139,7 @@ func fetchAndStoreDevices(c *gin.Context, config Config) {
 
 func getDevices(c *gin.Context, config Config) {
 	fmt.Println("Getting devices from MongoDB...")
-	collection := client.Database(config.DatabaseName).Collection(config.CollectionName)
+	collection := client.Database(config.DatabaseName).Collection(config.DeviceCollectionName)
 
 	cursor, err := collection.Find(context.TODO(), bson.D{})
 	if err != nil {
@@ -175,7 +183,7 @@ func saveDevices(c *gin.Context, config Config) {
 	}
 
 	// Get the devices collection
-	collection := client.Database(config.DatabaseName).Collection(config.CollectionName)
+	collection := client.Database(config.DatabaseName).Collection(config.DeviceCollectionName)
 
 	// Clear the existing collection
 	_, err = collection.DeleteMany(context.TODO(), bson.D{}) // Clearing the collection
@@ -199,6 +207,45 @@ func saveDevices(c *gin.Context, config Config) {
 	c.JSON(http.StatusOK, gin.H{"message": "Devices updated successfully"})
 }
 
+func updateDeviceHandler(c *gin.Context, config Config) {
+	deviceIDStr := c.Param("id") // Use Gin's way to get path parameters
+
+	deviceID, err := primitive.ObjectIDFromHex(deviceIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid device ID"}) // Use Gin's JSON function
+		return
+	}
+
+	var updatedDevice map[string]interface{} // Use a map to receive updates
+
+	if err := c.ShouldBindJSON(&updatedDevice); err != nil { // Use ShouldBindJSON to handle JSON and other formats
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	//Remove the _id from updatedDevice to avoid conflicts
+	delete(updatedDevice, "_id")
+
+	filter := bson.M{"_id": deviceID}
+	update := bson.M{"$set": updatedDevice}
+
+	collection := client.Database(config.DatabaseName).Collection(config.DeviceCollectionName)
+
+	result, err := collection.UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating device"})
+		return
+	}
+
+	if result.ModifiedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Device not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Device updated successfully"})
+
+}
+
 func main() {
 	// Load application configuration
 	config, err := loadConfig("config.json")
@@ -206,14 +253,11 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Construct the MongoDB URI
-	mongoURI := fmt.Sprintf("%s:%s", config.MongoDBURL, config.MongoDBPort)
-	err = initMongoDB(mongoURI)
+	// Initialize MongoDB
+	client, err = initMongoDB(config)
 	if err != nil {
-		log.Fatalf("Failed to connect to MongoDB: %v", err)
+		log.Fatal(err)
 	}
-	defer client.Disconnect(context.TODO())
-
 	// Set up the Gin router
 	router := gin.Default()
 
@@ -228,16 +272,16 @@ func main() {
 	// Define routes AFTER CORS middleware
 	router.GET("/fetch-devices", func(c *gin.Context) {
 		fetchAndStoreDevices(c, config)
+
 	})
 
 	router.GET("/devices", func(c *gin.Context) {
 		getDevices(c, config)
 	})
 
-	router.PUT("/devices", func(c *gin.Context) { // Use PUT for updates
-		saveDevices(c, config)
+	router.PUT("/devices/:id", func(c *gin.Context) {
+		updateDeviceHandler(c, config) // Pass the config to the handler
 	})
-
 	// Start the server on the configured port
 	router.Run(":" + config.ServerPort)
 }

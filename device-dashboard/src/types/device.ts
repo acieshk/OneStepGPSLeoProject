@@ -3,7 +3,7 @@ interface Device {
 	activated_at: string | null;
 	active_state: string;
 	bcc_id: string;
-	color?: string;  // Keep the color property
+	color?: string;  
 	conn_data: {
 		auth_token: string;
 		device_id: string;
@@ -43,7 +43,7 @@ interface Device {
 				value: number,
 			},
 		};
-		dt_tracker: string;
+		dt_tracker: string | Date;
 		lat: number;
 		lng: number;
 		speed: number;
@@ -55,4 +55,7 @@ interface Device {
 	updated_at: string;
 	vin: string | null;
 	year: number | null;
+
+	// Additional properties for the custom object
+	[key: string]: string | number | boolean | Date | object | undefined | null;
 }

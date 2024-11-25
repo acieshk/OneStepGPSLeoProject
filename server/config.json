@@ -1,7 +1,9 @@
 {
     "server_port": "8080",
-    "mongodb_url": "mongodb://localhost",
+    "mongodb_url": "localhost",
     "mongodb_port": "27017",
+	"mongodb_username": "",
+    "mongodb_password": "",
     "database_name": "onestepgps",  
     "device_collection_name": "device_data",
     "user_collection_name": "user_preferences", 

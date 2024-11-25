@@ -22,6 +22,8 @@ type Config struct {
 	ServerPort           string `json:"server_port"`
 	MongoDBURL           string `json:"mongodb_url"`
 	MongoDBPort          string `json:"mongodb_port"`
+	MongoDBUsername      string `json:"mongodb_username"`
+	MongoDBPassword      string `json:"mongodb_password"`
 	DatabaseName         string `json:"database_name"`
 	DeviceCollectionName string `json:"device_collection_name"`
 	UserCollectionName   string `json:"user_collection_name"`
@@ -30,10 +32,6 @@ type Config struct {
 	FrontendURL          string `json:"frontend_url"`
 	FrontendPort         string `json:"frontend_port"`
 }
-
-// Global variables for MongoDB collections
-var devicesCollection *mongo.Collection
-var userPreferencesCollection *mongo.Collection
 
 // Global variable to hold the MongoDB client
 var client *mongo.Client
@@ -59,20 +57,41 @@ func loadConfig(filename string) (Config, error) {
 // initMongoDB initializes the MongoDB client and establishes a connection
 func initMongoDB(config Config) (*mongo.Client, error) {
 	// Use config.DatabaseName here to get the database
-	clientOptions := options.Client().ApplyURI(fmt.Sprintf("%s:%s", config.MongoDBURL, config.MongoDBPort))
+	mongoURI := fmt.Sprintf("mongodb://%s:%s", config.MongoDBURL, config.MongoDBPort)
+	if config.MongoDBUsername != "" && config.MongoDBPassword != "" {
+		mongoURI = fmt.Sprintf("mongodb://%s:%s@%s:%s/",
+			config.MongoDBUsername,
+			config.MongoDBPassword,
+			config.MongoDBURL,
+			config.MongoDBPort,
+		)
+	}
+
+	fmt.Println("Connecting to:", mongoURI)
+	clientOptions := options.Client().ApplyURI(mongoURI)
 	client, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to MongoDB: %v", err) // Return the error immediately
 	}
 
-	err = client.Ping(context.TODO(), nil)
+	// Check if there was an error during connection
+	if err := client.Ping(context.TODO(), nil); err != nil {
+		return nil, fmt.Errorf("MongoDB ping failed: %v", err)
+	}
 
+	// Create database if it doesn't exist.
+	db := client.Database(config.DatabaseName)
+
+	// Check if the collections exist; if not, create them.
+	err = createCollectionIfNotExists(db, config.DeviceCollectionName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create devices collection: %v", err)
 	}
 
-	devicesCollection = client.Database(config.DatabaseName).Collection(config.DeviceCollectionName)
-	userPreferencesCollection = client.Database(config.DatabaseName).Collection(config.UserCollectionName) // Initialize the user preferences collection
+	err = createCollectionIfNotExists(db, config.UserCollectionName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user preferences collection: %v", err)
+	}
 
 	return client, nil
 }
@@ -120,13 +139,12 @@ func fetchAndStoreDevices(c *gin.Context, config Config) {
 	}
 	fmt.Printf("Deleted %d existing documents\n", deleteResult.DeletedCount)
 
-	// Store each device directly
+	// Store each device directly - Improved error handling
 	for i, device := range response.ResultList {
 		_, err := collection.InsertOne(context.TODO(), device)
 		if err != nil {
-			fmt.Printf("Error inserting device %d: %v\n", i, err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store device"})
-			return
+			fmt.Printf("Error inserting device %d: %v\n", i, err) // Log the error
+			continue                                              // Continue to the next device
 		}
 	}
 
@@ -163,49 +181,47 @@ func getDevices(c *gin.Context, config Config) {
 	})
 }
 
-func saveDevices(c *gin.Context, config Config) {
-	fmt.Println("Saving devices to MongoDB...")
+// func saveDevices(c *gin.Context, config Config) {
+// 	fmt.Println("Saving devices to MongoDB...")
 
-	// Read the request body
-	body, err := ioutil.ReadAll(c.Request.Body)
-	if err != nil {
-		fmt.Printf("Error reading request body: %v\n", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
-		return
-	}
+// 	body, err := ioutil.ReadAll(c.Request.Body)
+// 	if err != nil {
+// 		log.Printf("Error reading request body: %v", err)                            // Consistent logging
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"}) // Consistent error message
+// 		return
+// 	}
 
-	// Parse JSON into a slice of maps
-	var devices []map[string]interface{}
-	if err := json.Unmarshal(body, &devices); err != nil {
-		fmt.Printf("Error parsing JSON: %v\n", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON format"})
-		return
-	}
+// 	var devices []map[string]interface{}
+// 	if err := json.Unmarshal(body, &devices); err != nil {
+// 		log.Printf("Error parsing JSON: %v", err)                                    // Consistent logging
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"}) // Consistent error message
+// 		return
+// 	}
 
-	// Get the devices collection
-	collection := client.Database(config.DatabaseName).Collection(config.DeviceCollectionName)
+// 	// Get the devices collection
+// 	collection := client.Database(config.DatabaseName).Collection(config.DeviceCollectionName)
 
-	// Clear the existing collection
-	_, err = collection.DeleteMany(context.TODO(), bson.D{}) // Clearing the collection
+// 	// Clear the existing collection
+// 	_, err = collection.DeleteMany(context.TODO(), bson.D{}) // Clearing the collection
 
-	if err != nil {
-		fmt.Printf("Error deleting existing devices: %v\n", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update devices"})
-		return
-	}
+// 	if err != nil {
+// 		fmt.Printf("Error deleting existing devices: %v\n", err)
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update devices"})
+// 		return
+// 	}
 
-	// Insert the updated devices
-	for i, device := range devices {
-		_, err := collection.InsertOne(context.TODO(), device)
-		if err != nil {
-			fmt.Printf("Error inserting device %d: %v\n", i, err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update devices"}) // Return specific error
-			return
-		}
-	}
+// 	// Insert the updated devices
+// 	for i, device := range devices {
+// 		_, err := collection.InsertOne(context.TODO(), device)
+// 		if err != nil {
+// 			fmt.Printf("Error inserting device %d: %v\n", i, err)
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update devices"}) // Return specific error
+// 			return
+// 		}
+// 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Devices updated successfully"})
-}
+// 	c.JSON(http.StatusOK, gin.H{"message": "Devices updated successfully"})
+// }
 
 func updateDeviceHandler(c *gin.Context, config Config) {
 	deviceIDStr := c.Param("id") // Use Gin's way to get path parameters
@@ -246,6 +262,22 @@ func updateDeviceHandler(c *gin.Context, config Config) {
 
 }
 
+// Helper function to create a collection if it doesn't exist
+func createCollectionIfNotExists(db *mongo.Database, collectionName string) error {
+	list, err := db.ListCollectionNames(context.TODO(), bson.M{"name": collectionName})
+	if err != nil {
+		return err
+	}
+	if len(list) == 0 { // Collection doesn't exist
+		_ = db.CreateCollection(context.TODO(), collectionName)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Created collection %s\n", collectionName)
+	}
+	return nil
+}
+
 func main() {
 	// Load application configuration
 	config, err := loadConfig("config.json")
@@ -256,18 +288,13 @@ func main() {
 	// Initialize MongoDB
 	client, err = initMongoDB(config)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to initialize MongoDB: %v", err)
 	}
 	// Set up the Gin router
 	router := gin.Default()
 
-	// Add CORS middleware BEFORE defining routes
-	corsConfig := cors.DefaultConfig()
-	corsConfig.AllowOrigins = []string{fmt.Sprintf("%s:%s", config.FrontendURL, config.FrontendPort)}
-	corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
-	corsConfig.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type"}
-
-	router.Use(cors.New(corsConfig))
+	// Using cros default in dev environments
+	router.Use(cors.Default())
 
 	// Define routes AFTER CORS middleware
 	router.GET("/fetch-devices", func(c *gin.Context) {

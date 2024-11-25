@@ -188,18 +188,36 @@ const assignDeviceColor = (device: Device, index: number): string => {
 };
 
 const fetchDevices = async () => {
-	try {
-		const response = await apiService.getDevices();
-		devices.value = response.result_list.map((device: Device, index: number) => ({
-			...device,
-			color: assignDeviceColor(device, index),
-			visible: true, // Default visibility to true
-		}));
+    try {
+        const response = await apiService.getDevices();
 
-		// Update device colors
-		devices.value.forEach(device => {
-			deviceColors.value[device.device_id] = device.color || '#1976D2';
-		});
+        devices.value = response.result_list.map((device: Device, index: number) => {
+            const newDevice = {
+                ...device,
+                color: assignDeviceColor(device, index),
+                visible: true, 
+            };
+
+            // Convert date strings to Date objects
+            if (newDevice.latest_device_point?.dt_tracker) {
+                newDevice.latest_device_point.dt_tracker = new Date(newDevice.latest_device_point.dt_tracker);
+            }
+
+
+            // Iterate through all keys to find and convert any date strings.
+            for (const key in device) {
+              const value = device[key];
+              if (typeof value === 'string') {
+                const parsedDate = new Date(value);
+                if (!isNaN(parsedDate.getTime())) {  // Check if it's a valid date
+                  newDevice[key] = parsedDate;  // Update with Date object if possible
+                }
+              }
+
+            }
+
+            return newDevice;
+        });
 	} catch (error) {
 		console.error('Error fetching devices:', error);
 	}

@@ -33,3 +33,6 @@ Future Enhancement
    - Implement rate limiting for API calls
    - Add caching layer for frequently accessed data
    - Optimize database queries for real-time updates
+
+- Right now, I am using console log as a logging mechanism. 
+- I would need the possible value for each field in order to do data validation. 

@@ -1,11 +1,14 @@
 <template>
 	<el-dialog v-model="showDialog" title="Edit Device" width="90%" @close="closeDialog">
-		<div class="edit-table-container">
+	  <div class="upload-container">
+	  <IconUpload :uploadUrl="uploadUrl" :currentIconUrl="deviceToEdit?.iconURL" @icon-uploaded="handleIconUploaded" />
+	  </div>
+	  <div class="edit-table-container">
 		<el-table :data="filteredTableData" border style="width: 100%" :row-class-name="(row) => row.modified ? 'modified-row fixed-height-row' : 'fixed-height-row'">
-		  <el-table-column v-for="(header, level) in headers" :key="level" :label="header" :width="level === 0 ? '150px' : '125px'">  <!-- Set widths here -->
+		  <el-table-column v-for="(header, level) in headers" :key="level" :label="header" :width="level === 0 ? '150px' : '125px'">
 			<template #default="scope">
-			  <span v-if="scope.row.path.length >= level +1 ">  <!-- Correct level access -->
-				{{ scope.row.path[level] }}  <!-- Display property from path -->
+			  <span v-if="scope.row.path.length >= level + 1">
+				{{ scope.row.path[level] }}
 			  </span>
 			</template>
 		  </el-table-column>
@@ -24,29 +27,35 @@
 				<el-date-picker v-else-if="getInputType(scope.row.originalValue) === 'date'" v-model="scope.row.value" type="datetime" @change="() => scope.row.modified = true" />
 				<el-button type="text" size="small" class="null-button" @click="setNullAndSave(scope.row, scope.$index)">Set Null</el-button>
 			  </div>
-						  <template v-else> <span>{{ displayValue(scope.row.value) }} {{ scope.row.unit ? scope.row.unit : '' }}</span> </template>
-  
+			  <span v-else>  <!-- Correctly placed v-else for non-editable fields -->
+				{{ displayValue(scope.row.value) }} {{ scope.row.unit ? scope.row.unit : '' }}
+			  </span>
 			</template>
 		  </el-table-column>
 		  <el-table-column label="Edit" width="120">
 			<template #default="scope">
-				<el-button type="primary" size="small" :disabled="scope.row.nonEditable" @click="editRow(scope.row, scope.$index)" v-if="!scope.row.editing">Edit</el-button>
-				<el-button type="primary" size="small" @click="saveRow(scope.row, scope.$index)" v-if="scope.row.editing">Save</el-button>
+			  <el-button type="primary" size="small" :disabled="scope.row.nonEditable" @click="editRow(scope.row, scope.$index)" v-if="!scope.row.editing">Edit</el-button>
+			  <el-button type="primary" size="small" @click="saveRow(scope.row, scope.$index)" v-if="scope.row.editing">Save</el-button>
 			</template>
 		  </el-table-column>
-  
 		</el-table>
 	  </div>
-  
-	  </el-dialog>
-  
+	  <template #footer>
+		<span class="dialog-footer">
+		  <el-button @click="closeDialog">Cancel</el-button>
+		  <el-button type="primary" @click="saveDevice">Save</el-button>
+		</span>
+	  </template>
+	</el-dialog>
   </template>
+  
   
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, toRefs, defineEmits, defineProps, nextTick } from 'vue';
 import type { Device } from '@/App.vue';
 import { ElMessage } from 'element-plus';
+import IconUpload from './IconUpload.vue';
 import _ from 'lodash';
 
 const emit = defineEmits(['update:modelValue', 'device-updated']);
@@ -242,6 +251,10 @@ const formatLabel = (key: unknown) => {
 		return String(key);
 	}
 };
+
+const uploadUrl = computed(() => {
+	return deviceToEdit.value?.device_id ? `/devices/${deviceToEdit.value.device_id}/icon` : null // or just ''
+});
 
 </script>
 <style scoped>

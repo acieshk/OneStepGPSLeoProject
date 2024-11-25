@@ -26,25 +26,25 @@ This project provides a dashboard to visualize and manage device data fetched fr
 ## Installation and Setup
 
 ### 1. Clone the repository
-\`\`\`bash
+```bash
 git clone https://github.com/your-username/device-dashboard.git
-\`\`\`
+```
 
 ### 2. Backend \(Go\)
 
 #### Navigate to the server directory:
-\`\`\`bash
+```bash
 cd device-dashboard/server
-\`\`\`
+```
 
 #### Install dependencies:
-\`\`\`bash
+```bash
 go mod download
-\`\`\`
+```
 
 #### Create a \`config.json\` file:  
 Create a \`config.json\` file in the server directory and configure the following settings:
-\`\`\`json
+```json
 {
   "server_port": "8080",
   "mongodb_url": "your_mongodb_url",
@@ -59,16 +59,16 @@ Create a \`config.json\` file in the server directory and configure the followin
   "mongodb_username": "your_mongodb_username",
   "mongodb_password": "your_mongodb_password"
 }
-\`\`\`
+```
 
 **Note**:  
 - Replace the placeholder values with your actual settings.  
 - If you're running MongoDB locally without authentication, you can omit the \`mongodb_username\` and \`mongodb_password\` fields.
 
 #### Run the server:
-\`\`\`bash
+```bash
 go run server.go
-\`\`\`
+```
 
 ### 3. Frontend \(Vue.js\)
 

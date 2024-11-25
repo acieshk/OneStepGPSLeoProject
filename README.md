@@ -11,14 +11,14 @@ This project provides a dashboard to visualize and manage device data fetched fr
 - **Device Icon Upload**: Allows users to upload custom icons for each device.  
 - **Device Details Editing**: Provides an interface to edit device properties, with validation and change tracking.  
 - **Database Refresh**: Enables manual refresh of device data from the OneStepGPS API.  
-- **User Preferences**: Lets users set distance units \(km/mi\) and layout preferences \(horizontal/vertical\).
+- **User Preferences**: Lets users set distance units (km/mi) and layout preferences (horizontal/vertical).
 
 ---
 
 ## Requirements
 
-- **Go \(1.16 or later\)**: Backend server.  
-- **Node.js and npm \(or yarn\)**: Required for the frontend \(Vue.js\).  
+- **Go (1.16 or later)**: Backend server.  
+- **Node.js and npm**: Required for the frontend (Vue.js).  
 - **MongoDB**: Database for storing device data.
 
 ---
@@ -30,7 +30,7 @@ This project provides a dashboard to visualize and manage device data fetched fr
 git clone https://github.com/your-username/device-dashboard.git
 ```
 
-### 2. Backend \(Go\)
+### 2. Backend (Go)
 
 #### Navigate to the server directory:
 ```bash
@@ -71,7 +71,7 @@ Edit the config.json file in the server directory and configure the following se
 go run server.go
 ```
 
-### 3. Frontend \(Vue.js\)
+### 3. Frontend (Vue.js)
 
 #### Navigate to the frontend directory:
 ```bash
@@ -83,8 +83,8 @@ cd device-dashboard/frontend
 npm install  # or yarn install
 ```
 
-#### Configure environment variables \(optional\):  
-Create a \`.env\` file in the frontend directory for sensitive data or configuration settings. Use it to store API keys, backend URLs, etc.
+#### Configure environment variables (optional):  
+Create a `.env` file in the frontend directory for sensitive data or configuration settings. Use it to store API keys, backend URLs, etc.
 
 #### Run the development server:
 ```bash
@@ -96,7 +96,7 @@ npm run dev  # or yarn dev
 ## Usage
 
 1. **Access the Dashboard**:  
-   Open your web browser and navigate to \`http://localhost:<your_frontend_port>\` \(replace \`<your_frontend_port>\` with your configured port\).
+   Open your web browser and navigate to `http://localhost:<your_frontend_port>` (replace `<your_frontend_port>` with your configured port).
 
 2. **Refresh Data**:  
    Click the refresh button to fetch the latest device data from the OneStepGPS API.

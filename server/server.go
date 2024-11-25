@@ -97,6 +97,26 @@ func initMongoDB(config Config) (*mongo.Client, error) {
 
 	// Create database if it doesn't exist.
 	db := client.Database(config.DatabaseName)
+	// Check if the database was actually created (if it didn't already exist)
+	// Get a list of database names
+	dbNames, err := client.ListDatabaseNames(context.TODO(), bson.M{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list database names: %w", err) // Wrap the error
+	}
+
+	dbExists := false
+	for _, name := range dbNames {
+		if name == config.DatabaseName {
+			dbExists = true
+			break
+		}
+
+	}
+
+	if !dbExists {
+		fmt.Printf("Created database: %s\n", config.DatabaseName)
+
+	}
 
 	// Check if the collections exist; if not, create them.
 	err = createCollectionIfNotExists(db, config.DeviceCollectionName)

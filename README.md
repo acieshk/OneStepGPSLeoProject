@@ -42,8 +42,8 @@ cd device-dashboard/server
 go mod download
 ```
 
-#### Create a \`config.json\` file:  
-Create a \`config.json\` file in the server directory and configure the following settings:
+#### Edit the config.json file:  
+Edit the config.json file in the server directory and configure the following settings:
 ```json
 {
   "server_port": "8080",
@@ -63,7 +63,8 @@ Create a \`config.json\` file in the server directory and configure the followin
 
 **Note**:  
 - Replace the placeholder values with your actual settings.  
-- If you're running MongoDB locally without authentication, you can omit the \`mongodb_username\` and \`mongodb_password\` fields.
+- If you're running MongoDB locally without authentication, you can omit the `mongodb_username` and `mongodb_password` fields.
+
 
 #### Run the server:
 ```bash

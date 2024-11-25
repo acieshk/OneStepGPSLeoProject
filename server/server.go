@@ -4,10 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"image"
+	"io"
 	"io/ioutil"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
+
+	_ "image/gif"  // Decode GIF
+	_ "image/jpeg" // Decode JPEG
+	_ "image/png"  // Decode PNG
+	"path/filepath"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -31,6 +39,14 @@ type Config struct {
 	APIURL               string `json:"api_url"` // Base URL for the API
 	FrontendURL          string `json:"frontend_url"`
 	FrontendPort         string `json:"frontend_port"`
+}
+
+// Define the Handlers type (if not already defined)
+type Handlers struct {
+	Config                    Config
+	DevicesCollection         *mongo.Collection
+	UserPreferencesCollection *mongo.Collection
+	DBClient                  *mongo.Client
 }
 
 // Global variable to hold the MongoDB client
@@ -181,48 +197,6 @@ func getDevices(c *gin.Context, config Config) {
 	})
 }
 
-// func saveDevices(c *gin.Context, config Config) {
-// 	fmt.Println("Saving devices to MongoDB...")
-
-// 	body, err := ioutil.ReadAll(c.Request.Body)
-// 	if err != nil {
-// 		log.Printf("Error reading request body: %v", err)                            // Consistent logging
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"}) // Consistent error message
-// 		return
-// 	}
-
-// 	var devices []map[string]interface{}
-// 	if err := json.Unmarshal(body, &devices); err != nil {
-// 		log.Printf("Error parsing JSON: %v", err)                                    // Consistent logging
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"}) // Consistent error message
-// 		return
-// 	}
-
-// 	// Get the devices collection
-// 	collection := client.Database(config.DatabaseName).Collection(config.DeviceCollectionName)
-
-// 	// Clear the existing collection
-// 	_, err = collection.DeleteMany(context.TODO(), bson.D{}) // Clearing the collection
-
-// 	if err != nil {
-// 		fmt.Printf("Error deleting existing devices: %v\n", err)
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update devices"})
-// 		return
-// 	}
-
-// 	// Insert the updated devices
-// 	for i, device := range devices {
-// 		_, err := collection.InsertOne(context.TODO(), device)
-// 		if err != nil {
-// 			fmt.Printf("Error inserting device %d: %v\n", i, err)
-// 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update devices"}) // Return specific error
-// 			return
-// 		}
-// 	}
-
-// 	c.JSON(http.StatusOK, gin.H{"message": "Devices updated successfully"})
-// }
-
 func updateDeviceHandler(c *gin.Context, config Config) {
 	deviceIDStr := c.Param("id") // Use Gin's way to get path parameters
 
@@ -278,6 +252,124 @@ func createCollectionIfNotExists(db *mongo.Database, collectionName string) erro
 	return nil
 }
 
+func handleIconUpload(c *gin.Context, h *Handlers) {
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to retrieve uploaded file"})
+		return
+	}
+	defer file.Close()
+
+	// Validate file type and size
+	if err := validateImageFile(file, header); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Reset file pointer after validation
+	_, err = file.Seek(0, io.SeekStart) // Resetting after reading the file header
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to reset file pointer %v", err)})
+		return
+	}
+
+	iconsDir := "./device-icons" // Path for storing icons
+	if err := os.MkdirAll(iconsDir, os.ModePerm); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create icon directory"})
+		return
+	}
+
+	deviceIDStr := c.Param("id")
+	deviceID, err := primitive.ObjectIDFromHex(deviceIDStr)
+
+	// Create the icon directory if it doesn't exist.  Use os.MkdirAll for nested directories.
+	iconDir := "./icons" // Top-level icon directory
+	if err := os.MkdirAll(iconDir, os.ModePerm); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to create icon directory: %w", err)})
+		return
+	}
+
+	filename := fmt.Sprintf("%s.png", deviceID.Hex()) //  Use device ID as filename + extension
+	filepath := filepath.Join(iconDir, filename)
+
+	// Save file locally
+	outFile, err := os.Create(filepath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create icon file"})
+		return
+	}
+	defer outFile.Close()
+
+	_, err = io.Copy(outFile, file)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save icon file"})
+		return
+	}
+
+	iconURL := fmt.Sprintf("%s:%s/icons/%s", h.Config.FrontendURL, h.Config.FrontendPort, filename)
+
+	if err := updateDeviceIconURL(h, deviceID, iconURL); err != nil { // Pass *Handlers
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update device icon URL"})
+
+		return
+
+	}
+
+	c.JSON(http.StatusOK, gin.H{"iconURL": iconURL})
+}
+
+func validateImageFile(file io.Reader, header *multipart.FileHeader) error {
+
+	// Decode to get image dimensions and validate it's an image
+	_, _, err := image.DecodeConfig(file)
+	if err != nil {
+		return fmt.Errorf("invalid image file: %v", err)
+	}
+
+	// ... other validation if needed (e.g., file size)
+
+	return nil
+}
+
+func saveIconFile(file multipart.File, filename string, h *Handlers) error {
+
+	// Create the device-icons directory if it doesn't exist
+	if err := os.MkdirAll("./device-icons", os.ModePerm); err != nil { // corrected directory path
+		return fmt.Errorf("failed to create device-icons directory: %w", err)
+	}
+
+	out, err := os.Create(filepath.Join("./device-icons", filename)) // Save in device-icons
+	if err != nil {
+		return fmt.Errorf("failed to create icon file: %w", err)
+	}
+
+	defer out.Close()
+
+	_, err = io.Copy(out, file)
+	if err != nil {
+		return fmt.Errorf("failed to copy icon file: %w", err)
+
+	}
+
+	return nil
+}
+
+func updateDeviceIconURL(h *Handlers, deviceID primitive.ObjectID, iconURL string) error {
+	// ... your logic to update the iconURL in the database (similar to updateDeviceHandler)
+	filter := bson.M{"_id": deviceID}
+	update := bson.M{"$set": bson.M{"icon_url": iconURL}} // Assuming "icon_url" is the field in MongoDB
+
+	_, err := h.DevicesCollection.UpdateOne(context.TODO(), filter, update) // Use the correct collection
+
+	if err != nil {
+		return fmt.Errorf("failed to update iconURL %v", err)
+	}
+
+	return nil
+}
+
+var handlers *Handlers
+
 func main() {
 	// Load application configuration
 	config, err := loadConfig("config.json")
@@ -285,10 +377,20 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Initialize MongoDB
+	// Initialize MongoDB client and collections
 	client, err = initMongoDB(config)
 	if err != nil {
-		log.Fatalf("Failed to initialize MongoDB: %v", err)
+		log.Fatalf("Failed to initialize MongoDB: %v", err) // Correct: log and exit on config error
+	}
+	// Initialize collections
+	devicesCollection := client.Database(config.DatabaseName).Collection(config.DeviceCollectionName)
+	userPreferencesCollection := client.Database(config.DatabaseName).Collection(config.UserCollectionName)
+	// Initialize Handlers
+	handlers := &Handlers{
+		Config:                    config,
+		DevicesCollection:         devicesCollection,
+		UserPreferencesCollection: userPreferencesCollection,
+		DBClient:                  client,
 	}
 	// Set up the Gin router
 	router := gin.Default()
@@ -309,6 +411,13 @@ func main() {
 	router.PUT("/devices/:id", func(c *gin.Context) {
 		updateDeviceHandler(c, config) // Pass the config to the handler
 	})
+
+	router.POST("/devices/:id/icon", func(c *gin.Context) {
+		handleIconUpload(c, handlers) // Pass handlers, not config
+	})
+	router.Static("/icons", "./icons")
+
 	// Start the server on the configured port
 	router.Run(":" + config.ServerPort)
+
 }

@@ -73,22 +73,22 @@ go run server.go
 ### 3. Frontend \(Vue.js\)
 
 #### Navigate to the frontend directory:
-\`\`\`bash
+```bash
 cd device-dashboard/frontend
-\`\`\`
+```
 
 #### Install dependencies:
-\`\`\`bash
+```bash
 npm install  # or yarn install
-\`\`\`
+```
 
 #### Configure environment variables \(optional\):  
 Create a \`.env\` file in the frontend directory for sensitive data or configuration settings. Use it to store API keys, backend URLs, etc.
 
 #### Run the development server:
-\`\`\`bash
+```bash
 npm run dev  # or yarn dev
-\`\`\`
+```
 
 ---
 
@@ -113,3 +113,14 @@ npm run dev  # or yarn dev
    Use the settings icon to adjust distance units and dashboard layout preferences.
 
 ---
+## Future Improvements
+
+* **Cloud Storage for Icons:** Currently, device icons are stored on the server's local file system. For production deployments, migrating to a cloud storage service like Google Cloud Storage, Amazon S3, or Azure Blob Storage is recommended for improved scalability, security, and maintainability.
+* **Form Validation:** Currently, basic client-side form validation is implemented using Vue.js. However, due to the lack of access to comprehensive requirements and the full range of possible form values, the validation is incomplete and requires further refinement.
+* **User Authentication and Authorization:** Implement a secure authentication and authorization mechanism to control access to the dashboard and its features.  Consider using industry-standard authentication protocols like OAuth 2.0 or OpenID Connect.
+* **API Rate Limiting:** Implement API rate limiting to prevent abuse of the OneStepGPS API/ and ensure the application's stability.
+* **Improved Error Handling:** Enhance error handling throughout the application to provide more informative and user-friendly error messages.
+* **Unit and Integration Tests:** Write comprehensive unit and integration tests to improve code quality and ensure the application's reliability.
+* **Deployment Automation:** Automate the deployment process using tools like Docker and Kubernetes for easier and more reliable deployments.
+* **Real-time Updates:** Implement real-time updates for device locations using WebSockets or Server-Sent Events.  This would provide a more dynamic and responsive user experience.
+* **Performance Optimization:** Optimize database queries and frontend rendering to improve the application's performance and responsiveness, especially when handling a large number of devices.

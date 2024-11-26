@@ -25,6 +25,13 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+type UserPreferences struct {
+	UserID       string `bson:"user_id" json:"userId"`             // Changed to userId to match request
+	DistanceUnit string `bson:"distance_unit" json:"distanceUnit"` // Match casing from frontend
+	Layout       string `bson:"layout" json:"layout"`              // Match casing from frontend
+
+}
+
 // Config represents the configuration structure for the application
 type Config struct {
 	ServerPort           string `json:"server_port"`
@@ -41,7 +48,7 @@ type Config struct {
 	FrontendPort         string `json:"frontend_port"`
 }
 
-// Define the Handlers type (if not already defined)
+// Handlers for passing dependencies
 type Handlers struct {
 	Config                    Config
 	DevicesCollection         *mongo.Collection
@@ -50,7 +57,10 @@ type Handlers struct {
 }
 
 // Global variable to hold the MongoDB client
-var client *mongo.Client
+var (
+	client   *mongo.Client
+	handlers *Handlers
+)
 
 // loadConfig reads and parses the configuration file
 func loadConfig(filename string) (Config, error) {
@@ -132,9 +142,9 @@ func initMongoDB(config Config) (*mongo.Client, error) {
 	return client, nil
 }
 
-func fetchAndStoreDevices(c *gin.Context, config Config) {
+func fetchAndStoreDevices(c *gin.Context, h *Handlers) {
 	fmt.Println("Starting fetchAndStoreDevices...")
-	apiURL := fmt.Sprintf("%s%s", config.APIURL, config.APIKey)
+	apiURL := fmt.Sprintf("%s%s", h.Config.APIURL, h.Config.APIKey)
 	fmt.Printf("Fetching from API URL: %s\n", apiURL)
 
 	resp, err := http.Get(apiURL)
@@ -165,7 +175,7 @@ func fetchAndStoreDevices(c *gin.Context, config Config) {
 	}
 
 	// Get the devices collection
-	collection := client.Database(config.DatabaseName).Collection(config.DeviceCollectionName)
+	collection := client.Database(h.Config.DatabaseName).Collection(h.Config.DeviceCollectionName)
 	// Clear existing devices
 	deleteResult, err := collection.DeleteMany(context.TODO(), bson.D{})
 	if err != nil {
@@ -191,9 +201,9 @@ func fetchAndStoreDevices(c *gin.Context, config Config) {
 	})
 }
 
-func getDevices(c *gin.Context, config Config) {
+func getDevices(c *gin.Context, h *Handlers) {
 	fmt.Println("Getting devices from MongoDB...")
-	collection := client.Database(config.DatabaseName).Collection(config.DeviceCollectionName)
+	collection := client.Database(h.Config.DatabaseName).Collection(h.Config.DeviceCollectionName)
 
 	cursor, err := collection.Find(context.TODO(), bson.D{})
 	if err != nil {
@@ -217,7 +227,7 @@ func getDevices(c *gin.Context, config Config) {
 	})
 }
 
-func updateDeviceHandler(c *gin.Context, config Config) {
+func updateDeviceHandler(c *gin.Context, h *Handlers) {
 	deviceIDStr := c.Param("id") // Use Gin's way to get path parameters
 
 	deviceID, err := primitive.ObjectIDFromHex(deviceIDStr)
@@ -239,7 +249,7 @@ func updateDeviceHandler(c *gin.Context, config Config) {
 	filter := bson.M{"_id": deviceID}
 	update := bson.M{"$set": updatedDevice}
 
-	collection := client.Database(config.DatabaseName).Collection(config.DeviceCollectionName)
+	collection := h.DBClient.Database(h.Config.DatabaseName).Collection(h.Config.DeviceCollectionName)
 
 	result, err := collection.UpdateOne(context.TODO(), filter, update)
 	if err != nil {
@@ -302,35 +312,28 @@ func handleIconUpload(c *gin.Context, h *Handlers) {
 	deviceIDStr := c.Param("id")
 	deviceID, err := primitive.ObjectIDFromHex(deviceIDStr)
 
-	// Create the icon directory if it doesn't exist.  Use os.MkdirAll for nested directories.
-	iconDir := "./icons" // Top-level icon directory
+	// Create the icon directory if it doesn't exist
+	iconDir := "./icons"
 	if err := os.MkdirAll(iconDir, os.ModePerm); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to create icon directory: %w", err)})
+
 		return
 	}
 
-	filename := fmt.Sprintf("%s.png", deviceID.Hex()) //  Use device ID as filename + extension
+	filename := fmt.Sprintf("%s.png", deviceID.Hex()) // Use device ID as filename + extension
+
 	filepath := filepath.Join(iconDir, filename)
 
 	// Save file locally
 	outFile, err := os.Create(filepath)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create icon file"})
-		return
-	}
+
 	defer outFile.Close()
 
 	_, err = io.Copy(outFile, file)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save icon file"})
-		return
-	}
 
 	iconURL := fmt.Sprintf("%s:%s/icons/%s", h.Config.FrontendURL, h.Config.FrontendPort, filename)
 
-	if err := updateDeviceIconURL(h, deviceID, iconURL); err != nil { // Pass *Handlers
+	if err := updateDeviceIconURL(h, deviceID, iconURL); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update device icon URL"})
-
 		return
 
 	}
@@ -388,7 +391,56 @@ func updateDeviceIconURL(h *Handlers, deviceID primitive.ObjectID, iconURL strin
 	return nil
 }
 
-var handlers *Handlers
+func getUserPreferencesHandler(c *gin.Context, h *Handlers) {
+	userId := c.Param("userId")
+
+	var prefs UserPreferences
+	err := h.UserPreferencesCollection.FindOne(context.TODO(), bson.M{"user_id": userId}).Decode(&prefs) // Use "user_id"
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			// Return default preferences if not found
+			prefs = UserPreferences{
+				UserID:       userId, // Or generate a new ID if needed
+				DistanceUnit: "km",
+				Layout:       "horizontal",
+			}
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve preferences"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, prefs) // Return preferences
+}
+
+func saveUserPreferencesHandler(c *gin.Context, h *Handlers) {
+	var prefs UserPreferences
+	if err := c.ShouldBindJSON(&prefs); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	// Use upsert to create or update preferences
+	opts := options.Update().SetUpsert(true)
+	filter := bson.M{"user_id": prefs.UserID} // Use the correct field name in the filter!
+	update := bson.M{"$set": prefs}           // Use $set to update fields
+
+	// Use the correct collection from your Handlers (h) and a context
+	result, err := h.UserPreferencesCollection.UpdateOne(context.TODO(), filter, update, opts) // Corrected context usage
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to save preferences %v", err)}) // Return error to frontend
+		return
+	}
+
+	// Log details for debugging
+	if result.UpsertedCount > 0 {
+		fmt.Println("Inserted a single document: ", result.UpsertedID)
+	} else {
+		fmt.Println("Matched", result.MatchedCount, "documents and updated", result.ModifiedCount, "documents.")
+	}
+
+	c.JSON(http.StatusOK, prefs) // Respond with the updated preferences
+}
 
 func main() {
 	// Load application configuration
@@ -397,47 +449,42 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Initialize MongoDB client and collections
+	// Initialize MongoDB client *before* creating collections or handlers
 	client, err = initMongoDB(config)
 	if err != nil {
-		log.Fatalf("Failed to initialize MongoDB: %v", err) // Correct: log and exit on config error
+		log.Fatalf("Failed to initialize MongoDB: %v", err)
 	}
-	// Initialize collections
+
+	// Initialize collections (after initializing MongoDB!)
 	devicesCollection := client.Database(config.DatabaseName).Collection(config.DeviceCollectionName)
 	userPreferencesCollection := client.Database(config.DatabaseName).Collection(config.UserCollectionName)
-	// Initialize Handlers
-	handlers := &Handlers{
+
+	// Initialize handlers (after MongoDB and collections are initialized!)
+
+	handlers = &Handlers{
 		Config:                    config,
 		DevicesCollection:         devicesCollection,
 		UserPreferencesCollection: userPreferencesCollection,
 		DBClient:                  client,
 	}
+
 	// Set up the Gin router
 	router := gin.Default()
 
-	// Using cros default in dev environments
+	// CORS Configuration (Simplified for development)
 	router.Use(cors.Default())
 
-	// Define routes AFTER CORS middleware
-	router.GET("/fetch-devices", func(c *gin.Context) {
-		fetchAndStoreDevices(c, config)
+	// Define routes
+	router.GET("/fetch-devices", func(c *gin.Context) { fetchAndStoreDevices(c, handlers) })
+	router.GET("/devices", func(c *gin.Context) { getDevices(c, handlers) })
+	router.PUT("/devices/:id", func(c *gin.Context) { updateDeviceHandler(c, handlers) })
+	router.POST("/devices/:id/icon", func(c *gin.Context) { handleIconUpload(c, handlers) })
+	router.GET("/user-preferences/:userId", func(c *gin.Context) { getUserPreferencesHandler(c, handlers) })
+	router.POST("/user-preferences", func(c *gin.Context) { saveUserPreferencesHandler(c, handlers) })
 
-	})
+	router.Static("/icons", "./icons") // Serve static files (if needed)
 
-	router.GET("/devices", func(c *gin.Context) {
-		getDevices(c, config)
-	})
-
-	router.PUT("/devices/:id", func(c *gin.Context) {
-		updateDeviceHandler(c, config) // Pass the config to the handler
-	})
-
-	router.POST("/devices/:id/icon", func(c *gin.Context) {
-		handleIconUpload(c, handlers) // Pass handlers, not config
-	})
-	router.Static("/icons", "./icons")
-
-	// Start the server on the configured port
+	// Start the server *after* all initialization
 	router.Run(":" + config.ServerPort)
 
 }

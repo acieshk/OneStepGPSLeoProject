@@ -122,4 +122,4 @@ npm run dev  # or yarn dev
 * **Deployment Automation:** Automate the deployment process using tools like Docker and Kubernetes for easier and more reliable deployments.
 * **Real-time Updates:** Implement real-time updates for device locations using WebSockets or Server-Sent Events.  This would provide a more dynamic and responsive user experience.
 * **Performance Optimization:** Optimize database queries and frontend rendering to improve the application's performance and responsiveness, especially when handling a large number of devices.
-* **env file:** Create a environment  file to store sensitive information such as API keys and database credentials.  This will improve security and make it easier to manage configuration settings across different environments.
+* **env file:** Create a environment file to store sensitive information such as API keys and database credentials.  This will improve security and make it easier to manage configuration settings across different environments.

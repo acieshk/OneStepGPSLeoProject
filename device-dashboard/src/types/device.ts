@@ -1,4 +1,4 @@
-interface Device {
+export interface Device {
 	_id: string;
 	activated_at: string | null;
 	active_state: string;

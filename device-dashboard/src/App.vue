@@ -2,67 +2,39 @@
 	<div class="app-container">
 		<header class="dashboard-header">
 			<h1>Device Dashboard</h1>
-			<div>
-				<el-tooltip content="Refresh Database" placement="bottom">
-					<el-button type="primary" :icon="Refresh" @click="showRefreshDialog" circle
-						:loading="isRefreshing" />
-				</el-tooltip>
-				<el-popover
-					ref="settingsPopover"
-					placement="bottom"
-					:width="300"
-					trigger="click"
-					v-model="settingsVisible"
-				>
-					<template #reference>
-						<el-button type="primary" :icon="Setting" circle @click="settingsVisible = !settingsVisible">
-							<el-tooltip content="Setting" placement="bottom" />
-						</el-button>
-					</template>
-					<div class="settings-content"> <div><span>Distance Unit:</span> <el-radio-group
-								v-model="userPreferences.distanceUnit">
-								<el-radio label="km">Kilometers</el-radio>
-								<el-radio label="mi">Miles</el-radio>
-							</el-radio-group>
-						</div><div class="layout-setting"><span>Layout:</span> <el-radio-group v-model="layout">
-								<el-radio label="horizontal">Horizontal</el-radio>
-								<el-radio label="vertical">Vertical</el-radio>
-							</el-radio-group>
-						</div></div>
-				</el-popover>
+			<div class="header-buttons">
+				<router-link to="/some-route">
+					<el-button type="primary" @click="showRefreshDialog" :disabled="isRefreshing">
+						<span v-if="isRefreshing">Refreshing...</span>
+						<span v-else>Refresh Data</span>
+					</el-button>
+				</router-link>
+				<router-link to="/user-preferences">
+					<el-button type="primary">Settings</el-button>
+				</router-link>
 			</div>
 		</header>
-		<div :class="['app-content', layout]">
-			<device-list :devices="devices" :selectedDevice="selectedDevice" :userPreferences="userPreferences"
-				@select-device="handleDeviceSelect" @update-device-color="handleDeviceColorUpdate"
-				@update-device-visibility="handleDeviceVisibilityUpdate" />
-			<device-map :devices="devices" :selectedDevice="selectedDevice" :deviceColors="deviceColors"
-				:deviceVisibility="deviceVisibility" @select-device="handleDeviceSelect" />
-		</div>
+
+		<router-view /> 
 
 		<el-dialog v-model="showDialog" title="Refresh Database" width="30%">
-			<span>Do you want to update the DB?</span>
-			<template #footer>
-				<span class="dialog-footer">
-					<el-button @click="showDialog = false">Cancel</el-button>
-					<el-button type="primary" @click="handleRefreshDB" :loading="isRefreshing">
-						Confirm
-					</el-button>
-				</span>
-			</template>
 		</el-dialog>
 	</div>
 </template>
 
+
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted, computed } from 'vue';
+import { useUserStore } from '@/stores/userStore'; // Import the user store
 import { apiService } from '@/services/api.service';
 import DeviceList from './components/DeviceList.vue';
 import DeviceMap from './components/DeviceMap.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Refresh, Setting, Loading } from '@element-plus/icons-vue'; // Import icons
+import { Refresh, Setting, Loading } from '@element-plus/icons-vue';
+import { useRouter } from 'vue-router';
+import { RouterLink, RouterView } from 'vue-router';
 
-// Professional color palette
+// Color palette
 const COLOR_PALETTE = [
 	'#1F77B4', // Muted Blue
 	'#FF7F0E', // Vivid Orange
@@ -86,31 +58,6 @@ const COLOR_PALETTE = [
 	'#2C3E50'  // Navy Blue
 ];
 
-export interface Device {
-	device_id: string;
-	display_name: string;
-	online: boolean;
-	color?: string;
-	visible?: boolean;
-	latest_device_point?: {
-		lat: number;
-		lng: number;
-		speed: number;
-		dt_tracker: string;
-		device_point_detail?: {
-			external_volt: number;
-		};
-		device_state?: {
-			fuel_percent: number;
-			odometer: {
-				value: number;
-				unit: string;
-			};
-		};
-	};
-	[key: string]: any;
-}
-
 const devices = ref<Device[]>([]);
 const selectedDevice = ref<Device | null>(null);
 const deviceColors = ref<{ [key: string]: string }>({});
@@ -118,8 +65,15 @@ const deviceVisibility = ref<{ [key: string]: boolean }>({});
 const showDialog = ref(false);
 const isRefreshing = ref(false);
 const showRefreshSuccessDialog = ref(false);
-const layout = ref(localStorage.getItem('layout') || 'horizontal');
+const router = useRouter();
+const userStore = useUserStore(); // Initialize the Pinia store
 
+const layout = ref(userStore.userPreferences.layout); // Now get layout from userStore
+
+// Watch layout changes in Pinia and update locally
+watch(() => userStore.userPreferences.layout, (newLayout) => {
+	layout.value = newLayout;
+});
 // Watch layout and store in localStorage
 // Watch layout and store in localStorage
 watch(layout, (newVal) => {
@@ -130,6 +84,10 @@ const userPreferences = reactive({
 	distanceUnit: localStorage.getItem('distanceUnit') || 'km',
 	speedUnit: localStorage.getItem('speedUnit') || 'km/h'
 });
+
+const goToSettings = () => {
+	router.push('/user-preferences'); // Navigates to the settings page
+};
 
 const showRefreshDialog = () => {
 	showDialog.value = true;
@@ -188,36 +146,36 @@ const assignDeviceColor = (device: Device, index: number): string => {
 };
 
 const fetchDevices = async () => {
-    try {
-        const response = await apiService.getDevices();
+	try {
+		const response = await apiService.getDevices();
 
-        devices.value = response.result_list.map((device: Device, index: number) => {
-            const newDevice = {
-                ...device,
-                color: assignDeviceColor(device, index),
-                visible: true, 
-            };
+		devices.value = response.result_list.map((device: Device, index: number) => {
+			const newDevice = {
+				...device,
+				color: assignDeviceColor(device, index),
+				visible: true,
+			};
 
-            // Convert date strings to Date objects
-            if (newDevice.latest_device_point?.dt_tracker) {
-                newDevice.latest_device_point.dt_tracker = new Date(newDevice.latest_device_point.dt_tracker);
-            }
+			// Convert date strings to Date objects
+			if (newDevice.latest_device_point?.dt_tracker) {
+				newDevice.latest_device_point.dt_tracker = new Date(newDevice.latest_device_point.dt_tracker);
+			}
 
 
-            // Iterate through all keys to find and convert any date strings.
-            for (const key in device) {
-              const value = device[key];
-              if (typeof value === 'string') {
-                const parsedDate = new Date(value);
-                if (!isNaN(parsedDate.getTime())) {  // Check if it's a valid date
-                  newDevice[key] = parsedDate;  // Update with Date object if possible
-                }
-              }
+			// Iterate through all keys to find and convert any date strings.
+			for (const key in device) {
+				const value = device[key];
+				if (typeof value === 'string') {
+					const parsedDate = new Date(value);
+					if (!isNaN(parsedDate.getTime())) {  // Check if it's a valid date
+						newDevice[key] = parsedDate;  // Update with Date object if possible
+					}
+				}
 
-            }
+			}
 
-            return newDevice;
-        });
+			return newDevice;
+		});
 	} catch (error) {
 		console.error('Error fetching devices:', error);
 	}
@@ -257,24 +215,19 @@ watch(() => userPreferences.speedUnit, (newVal) => {
 	localStorage.setItem('speedUnit', newVal);
 }, { immediate: true });
 
-onMounted(() => {
-	fetchDevices();
-	// Retrieve from localStorage (corrected)
-	const storedDistanceUnit = localStorage.getItem('distanceUnit');
-	if (storedDistanceUnit) {
-		userPreferences.distanceUnit = storedDistanceUnit; // No JSON.parse needed
-	}
-	const storedSpeedUnit = localStorage.getItem('speedUnit');
-	if (storedSpeedUnit) {
-
-		userPreferences.speedUnit = storedSpeedUnit;  // No JSON.parse needed
-
-	}
-	const storedLayout = localStorage.getItem('layout');
-	if (storedLayout) {
-		layout.value = storedLayout;
+onMounted(async () => {
+	try {
+		await fetchDevices();
+		const storedPreferences = await apiService.getUserPreferences("default"); // Fetch preferences first
+		userStore.updateUserPreferences(storedPreferences); // Initialize Pinia store with fetched preferences
+		router.push('/devices') 
+	} catch (error) {
+		// Display error
+		ElMessage.error('Failed to fetch preferences. Please try again.');
+		console.error('Error fetching preferences:', error);
 	}
 });
+
 </script>
 
 <style>
@@ -284,9 +237,19 @@ onMounted(() => {
 	box-sizing: border-box;
 }
 
+html,
 body {
+	height: 100%;
 	margin: 0;
 	padding: 0;
+
+}
+
+.app-container {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: auto;
 }
 </style>
 <style scoped>
@@ -294,7 +257,20 @@ body {
 	display: flex;
 	flex-direction: column;
 	height: 100vh;
-	overflow: hidden;
+}
+
+.header-buttons {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+
+.dashboard-header button {
+
+	height: fit-content;
+
+
 }
 
 .dashboard-header {
@@ -340,17 +316,25 @@ body {
 	flex-direction: column;
 }
 
-.el-button.is-circle .el-icon {  /* Target circular buttons specifically */
-  display: flex;   /* Use flexbox for centering */
-  justify-content: center; /* Center horizontally */
-  align-items: center; /* Center vertically */
-  width: 100%;      /* Icon takes full width of button */
-  height: 100%;     /* Icon takes full height of button */
+.el-button.is-circle .el-icon {
+	/* Target circular buttons specifically */
+	display: flex;
+	/* Use flexbox for centering */
+	justify-content: center;
+	/* Center horizontally */
+	align-items: center;
+	/* Center vertically */
+	width: 100%;
+	/* Icon takes full width of button */
+	height: 100%;
+	/* Icon takes full height of button */
 }
 
 @media (max-width: 768px) {
 	.app-content {
-		grid-template-columns: 1fr;
+		flex-direction: column;
+
+
 	}
 }
 </style>

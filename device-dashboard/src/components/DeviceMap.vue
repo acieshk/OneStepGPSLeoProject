@@ -1,219 +1,157 @@
 <template>
-	<div class="map-container">
-		<l-map ref="mapRef" :zoom="zoomLevel" :center="mapCenter" @ready="handleMapReady">
-			<l-tile-layer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-			<l-marker v-for="device in visibleDevices" :key="device.device_id" :lat-lng="getDeviceLatLng(device)"
-				:icon="getDeviceIcon(device)" @click="(event) => handleMarkerClick(device, event)"></l-marker>
+	<div class="device-map-container">
+		<l-map ref="map" :zoom="zoom" :center="center" @ready="handleMapReady">
+			<l-tile-layer :url="url" :attribution="attribution"></l-tile-layer>
+			<l-marker v-for="device in devices" :key="device.device_id" :lat-lng="getLatLng(device)"
+				:icon="getIcon(device)" @click="() => handleMarkerClick(device)"></l-marker>
+			<!-- Iterate over devices -->
 		</l-map>
 	</div>
+
 </template>
 
+
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue';
-import "leaflet/dist/leaflet.css";
-import * as L from 'leaflet';
-import { LMap, LTileLayer, LMarker } from "@vue-leaflet/vue-leaflet";
-import { Device } from '@/App.vue';
+import { inject, nextTick, ref, onMounted, watch } from 'vue';
+import 'leaflet/dist/leaflet.css';
+import * as L from 'leaflet'; // Correct import
+import { LMap, LTileLayer, LMarker, LIcon } from '@vue-leaflet/vue-leaflet'; // Import LMarker and LIcon
+import type { Device } from '@/types/device';
+import { useUserStore } from '@/stores/userStore';
+import { storeToRefs } from 'pinia';
+import _ from 'lodash';
 
-const deviceColors = [
-	'#E53935', '#1E88E5', '#43A047', '#FB8C00', '#8E24AA',
-	'#00ACC1', '#FFB300', '#546E7A', '#D81B60', '#6D4C41'
-];
+const zoom = ref(6);
+const center = ref([37.25, -119.75]);  // Initial center point (California)
+const url = ref('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');  // Base tile layer URL
+//Have to include attribution otherwise it is going to show blank
+const attribution = ref('&copy; <a target="_blank" href="http://osm.org/copyright">OpenStreetMap</a> contributors');
 
-delete L.Icon.Default.prototype._getIconUrl;
+const userStore = useUserStore();
+const { devices } = storeToRefs(userStore);
+
+// Correctly set Leaflet icon paths. Just a workaround for this library
 L.Icon.Default.mergeOptions({
 	iconRetinaUrl: new URL('leaflet/dist/images/marker-icon-2x.png', import.meta.url).href,
 	iconUrl: new URL('leaflet/dist/images/marker-icon.png', import.meta.url).href,
 	shadowUrl: new URL('leaflet/dist/images/marker-shadow.png', import.meta.url).href,
 });
 
-const props = defineProps<{
-	devices: Device[];
-	selectedDevice: Device | null;
-	deviceVisibility: { [key: string]: boolean };
-}>();
-
-const visibleDevices = computed(() => {
-	const filtered = props.devices.filter(device => {
-		const isVisible = device.visible ?? true;
-		console.log(`Device ${device.device_id}: visible=${isVisible}, prop visibility=${props.deviceVisibility[device.device_id]}`);
-		return isVisible;
-	});
-
-	console.log('Total devices:', props.devices.length);
-	console.log('Visible devices:', filtered.length);
-
-	return filtered;
-});
-
-const getDeviceColor = (deviceId: string) => {
-	const device = props.devices.find(d => d.device_id === deviceId);
-	return device?.color || '#1976D2'; // Default color if not specified
-};
-
-const getDeviceIcon = (device: Device) => {
-	const color = getDeviceColor(device.device_id);
-	const scale = isSelected(device) ? 1.2 : 1;
-	return L.divIcon({
-		className: 'custom-div-icon',
-		html: `<svg width="${24 * scale}" height="${36 * scale}" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg"><path d="M12 0C5.4 0 0 5.4 0 12c0 7.2 12 24 12 24s12-16.8 12-24c0-6.6-5.4-12-12-12z" fill="${color}" stroke="white" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="white"/></svg>`,
-		iconSize: [24 * scale, 36 * scale],
-		iconAnchor: [12 * scale, 36 * scale],
-		popupAnchor: [0, -36 * scale]
-	});
-};
-
-const emit = defineEmits<{
-	(e: 'select-device', device: Device): void;
-}>();
-
-
-const mapRef = ref();
-const markers = ref<L.Marker[]>([]);
-
-const defaultCenter = [37.25, -119.75]; // Approx. center of California
-const zoomLevel = ref(6); // Initial zoom level for California
-const mapCenter = computed(() => (props.selectedDevice?.latest_device_point?.lat && props.selectedDevice?.latest_device_point?.lng) ? [props.selectedDevice.latest_device_point.lat, props.selectedDevice.latest_device_point.lng] : defaultCenter);
-
-onMounted(() => {
-	markers.value.forEach(marker => marker.remove());
-	markers.value = [];
-
-	const mapInstance = (mapRef.value as any).leafletObject;
-
-	visibleDevices.value.forEach(createMarker);
-});
-
-// Debounce helper function (add this outside setup)
-function debounce(func: (...args: any[]) => void, wait: number = 300) {
-	let timeout: ReturnType<typeof setTimeout> | null = null;
-	return (...args: any[]) => {
-		if (timeout) clearTimeout(timeout);
-		timeout = setTimeout(() => {
-			func(...args);
-		}, wait);
-	};
-}
-
-const createMarker = (device: Device) => {
-    const mapInstance = (mapRef.value as any).leafletObject;
-    const markerLatLng = getDeviceLatLng(device);
-    const marker = L.marker(markerLatLng, { icon: getDeviceIcon(device) }).addTo(mapInstance);
-
-	console.log(`Creating marker for device ${device.device_id}:`, {
-		latLng: markerLatLng,
-		color: getDeviceColor(device.device_id)
-	});
-
-	const popupContent = `
-		  <div class="popup-content">
-			  <h3>${device.display_name}</h3>
-			  <p>Location: ${formatLocation(markerLatLng[0], markerLatLng[1])}</p>
-		  </div>
-	  `;
-	marker.bindPopup(popupContent);
-
-	marker.on('click', (event) => {
-		handleMarkerClick(device, event);
-	});
-
-    // Set initial opacity based on device visibility
-    marker.setOpacity(device.visible ? 1 : 0);
-
-    markers.value.push(marker);
-};
-
-const handleMapReady = () => {
-	console.log('Map is ready');
-};
-
-const getDeviceLatLng = (device: Device): [number, number] => {
-	if (device.latest_device_point?.lat && device.latest_device_point?.lng) {
+const getLatLng = (device: Device) => { // Corrected return type
+	if (device.latest_device_point && device.latest_device_point.lat && device.latest_device_point.lng) {
 		return [device.latest_device_point.lat, device.latest_device_point.lng];
 	}
-	console.log(`Device ${device.device_id} has no valid lat/lng`);
-	return defaultCenter;
-};
-const formatLocation = (lat: number, lng: number) => `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-
-const handleMarkerClick = (device: Device, event: L.LeafletMouseEvent) => {
-	console.log('Marker clicked:', device.display_name);
-	emit('select-device', device);
-	event.target.openPopup();
+	return center.value; // Or some default location if lat/lng is not available
 };
 
-const isSelected = (device: Device) => props.selectedDevice?.device_id === device.device_id;
+// Create a ref to hold the injected layout preference
+const injectedLayoutPreference = inject<string | undefined>('layoutPreference');
+const layoutPreference = ref(injectedLayoutPreference);
 
-// Watch deviceVisibility to update marker opacity directly (NEW)
-watch(() => props.deviceVisibility, (newVisibility) => {
-    markers.value.forEach(marker => {
-        const device = props.devices.find(d => d.device_id === marker.getPopup()?.getContent()?.match(/<h3>(.*?)<\/h3>/)[1]);
-		if (device) {
+const map = ref();
+let mapReady = ref(false);
 
-			marker.setOpacity(newVisibility[device.device_id] ? 1 : 0);
+const handleMapReady = () => {
+	mapReady.value = true;
+	updateMarkers();
+};
 
-		}
+const getIcon = (device) => {
+	// Existing getIcon logic - construct icon based on iconURL or color
+	if (device.iconURL) {
+		return new L.Icon({
 
+			iconUrl: device.iconURL,
+			iconSize: [32, 32],
+			iconAnchor: [16, 32],
+		});
+	}
+	const color = device.color || 'blue';
+
+	return new L.Icon({
+		iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
+		iconSize: [25, 41],
+		iconAnchor: [12, 41],
+	});
+
+};
+
+const isSelected = (device) => {
+	return props.selectedDevice?.device_id === device.device_id;
+};
+
+const debouncedUpdateMarkers = _.debounce(() => {
+	updateMarkers();
+}, 300);
+
+
+const markers = ref({});  // Stores markers by device_id
+
+
+
+const createMarker = (device) => {  // Creates a single marker
+
+	if (!map.value || !map.value.mapObject || !device.latest_device_point) {
+		return; // Return early to prevent errors
+
+	}
+
+	const latLng = getLatLng(device);  // Get device coordinates
+	// Creates a leaflet marker
+	const marker = L.marker(latLng, { icon: getIcon(device) }).addTo(map.value.mapObject); // Add marker to map
+
+	markers.value[device.device_id] = marker;
+
+};
+
+
+
+
+const updateMarkers = () => {
+	if (!map.value?.mapObject || !devices.value) {
+		return;  // No devices yet
+	}
+
+	for (const deviceId in markers.value) { // Clear existing markers
+		markers.value[deviceId].remove();
+	}
+	markers.value = {};
+
+
+	devices.value.forEach(device => { // Create markers for all current devices
+		createMarker(device);
+	});
+
+};
+
+onMounted(() => {
+
+});
+
+// Remove existing watch on layoutKey (it's not needed)
+// Watch for changes to the injected layoutPreference
+watch(layoutPreference, () => {  // layoutPreference is now a ref
+    nextTick(() => {
+        if (map.value?.mapObject) {
+            map.value.mapObject.invalidateSize(false);
+        }
     });
+}, { immediate: true }); // Trigger initially for proper sizing on mount
+
+// Watch for changes to the devices array and re-render markers if needed
+watch(() => devices.value, () => { // Correctly call fitBounds in the watcher
+
+	console.log(devices);
+	if (map.value?.mapObject && devices.value.length > 0) { // Check if map and devices are available
+		map.value.mapObject.fitBounds(devices.value.map(device => getLatLng(device))); // Call fitBounds here
+	}
 }, { deep: true });
 
 </script>
 
 <style scoped>
-.map-container {
+.device-map-container {
 	height: 100%;
 	width: 100%;
-	border-radius: 8px;
-	overflow: hidden;
-}
-
-.popup-content {
-	padding: 10px;
-	min-width: 200px;
-}
-
-.popup-content h3 {
-	margin: 0 0 8px 0;
-	font-size: 1.1rem;
-	color: #2c3e50;
-}
-
-.popup-content p {
-	margin: 4px 0;
-	font-size: 0.9rem;
-	color: #666;
-}
-
-.status-row {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	margin-bottom: 8px;
-}
-
-.status-indicator {
-	width: 8px;
-	height: 8px;
-	border-radius: 50%;
-}
-
-.status-indicator.online {
-	background: #4caf50;
-}
-
-.status-indicator.offline {
-	background: #f44336;
-}
-
-:deep(.leaflet-popup-content-wrapper) {
-	border-radius: 8px;
-}
-
-:deep(.leaflet-popup-content) {
-	margin: 8px 12px;
-}
-
-:deep(.leaflet-container) {
-	font-family: inherit;
 }
 </style>

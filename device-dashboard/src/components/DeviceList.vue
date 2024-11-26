@@ -108,14 +108,19 @@ import { Device } from '@/App.vue';
 import { convertUnits } from '@/utils/UnitConverter';
 import DeviceEditDialog from './DeviceEditDialog.vue';
 import { ElMessage } from 'element-plus';
+import { useUserStore } from '@/stores/userStore'; // Import your user store
+import { storeToRefs } from 'pinia';
+
+
 
 const props = defineProps<{
 	devices: Device[];
 	selectedDevice: Device | null;
 	userPreferences: { distanceUnit: string, speedUnit: string };
 }>();
-const odometerUnit = computed(() => props.userPreferences.odometerUnit);
-const speedUnit = computed(() => props.userPreferences.speedUnit);
+
+const userStore = useUserStore();
+const { userPreferences } = storeToRefs(userStore); 
 
 const emit = defineEmits<{
 	(e: 'select-device', device: Device): void;
@@ -251,19 +256,31 @@ const formatFuel = (percent?: number): string => {
 };
 
 const formatOdometer = (odometer: any): string => {
-	if (!odometer || typeof odometer.value !== 'number' || typeof odometer.unit !== 'string') return 'N/A';
-	const convertedOdometer = convertUnits(odometer.value, odometer.unit, props.userPreferences.distanceUnit); // Use props.userPreferences
-	const displayedUnit = props.userPreferences.odometerUnit === "km" ? "km" : "mi";
+    if (!odometer || typeof odometer.value !== 'number' || typeof odometer.unit !== 'string') return 'N/A';
 
-	return `${convertedOdometer.toFixed(1)} ${displayedUnit}`;
+    try {
+        const convertedOdometer = convertUnits(odometer.value, odometer.unit, userPreferences.value.distanceUnit);
+        const displayedUnit = userPreferences.value.distanceUnit === "km" ? "km" : "mi"; // Use store for unit
+        return `${convertedOdometer.toFixed(1)} ${displayedUnit}`;
+    } catch (error) {
+        console.error("Odometer unit conversion error:", error);
+        return "N/A";
+    }
 };
-
-const formatSpeed = (speed?: number): string => {
-	console.log(props.userPreferences.speedUnit);
-	if (speed === undefined) return 'N/A';
-	return `${convertUnits(speed, 'km/h', props.userPreferences.speedUnit).toFixed(1)} ${props.userPreferences.speedUnit}`; // Use props.userPreferences
-
-};
+const formatSpeed = computed(() => (device: Device) => {
+    if (!device || !device.latest_device_point?.speed) {
+		return "0";
+	}
+    try {
+		const speedKmh = device.latest_device_point.speed * 3.6;
+        const unit = userPreferences.value.distanceUnit === 'mi' ? 'mph' : 'km/h';
+		const convertedSpeed = convertUnits(speedKmh, 'km/h', unit); // Use convertUnits
+		return parseFloat(convertedSpeed.toFixed(1)) + ' ' + unit;
+    } catch (error) {
+        console.error("Unit conversion error:", error);
+        return "N/A"; // Or handle the error as needed
+    }
+});
 
 const formatDateTime = (dateString?: string): string => {
 	if (!dateString) return 'N/A';

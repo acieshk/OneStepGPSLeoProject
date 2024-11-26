@@ -15,9 +15,21 @@
 			</div>
 		</header>
 
-		<router-view /> 
+		<router-view />
 
 		<el-dialog v-model="showDialog" title="Refresh Database" width="30%">
+			<span>Do you want to update the DB?</span>
+			<template #footer>
+				<span class="dialog-footer">
+
+					<el-button @click="showDialog = false">Cancel</el-button>
+					<el-button type="primary" @click="handleRefreshDB" :loading="isRefreshing">
+
+						Confirm
+					</el-button>
+				</span>
+			</template>
+
 		</el-dialog>
 	</div>
 </template>
@@ -220,7 +232,7 @@ onMounted(async () => {
 		await fetchDevices();
 		const storedPreferences = await apiService.getUserPreferences("default"); // Fetch preferences first
 		userStore.updateUserPreferences(storedPreferences); // Initialize Pinia store with fetched preferences
-		router.push('/devices') 
+		router.push('/devices')
 	} catch (error) {
 		// Display error
 		ElMessage.error('Failed to fetch preferences. Please try again.');

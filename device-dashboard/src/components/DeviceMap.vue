@@ -12,7 +12,7 @@
 
 
 <script setup lang="ts">
-import { inject, nextTick, ref, onMounted, watch } from 'vue';
+import { inject, nextTick, ref, onMounted, watch, onUnmounted  } from 'vue';
 import 'leaflet/dist/leaflet.css';
 import * as L from 'leaflet'; // Correct import
 import { LMap, LTileLayer, LMarker, LIcon } from '@vue-leaflet/vue-leaflet'; // Import LMarker and LIcon
@@ -133,8 +133,14 @@ onMounted(() => {
 watch(layoutPreference, () => {  // layoutPreference is now a ref
     nextTick(() => {
         if (map.value?.mapObject) {
+            // Redraw each layer:
+            map.value.mapObject.eachLayer((layer) => {  // Force redraw of each layer
+                layer.redraw();
+            });
+
+            // Optionally call invalidateSize afterwards (might help in some cases):
             map.value.mapObject.invalidateSize(false);
-        }
+        }	
     });
 }, { immediate: true }); // Trigger initially for proper sizing on mount
 

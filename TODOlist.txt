@@ -36,3 +36,5 @@ Future Enhancement
 
 - Right now, I am using console log as a logging mechanism. 
 - I would need the possible value for each field in order to do data validation. 
+
+Current bug: In vert layout, it shows a gray block.

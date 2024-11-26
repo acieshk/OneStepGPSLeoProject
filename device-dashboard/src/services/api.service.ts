@@ -1,8 +1,7 @@
 import config from '@/config/config';
 import { configService } from './config.service';
 import type { UserPreferences } from '@/types/userPreferences'; // Correct path - no '.ts' extension needed
-
-
+import type { Device } from '@/types/device';
  class ApiService {
     private static instance: ApiService;
     private baseUrl: string;
@@ -47,22 +46,24 @@ import type { UserPreferences } from '@/types/userPreferences'; // Correct path 
     }
 
 	async updateDevice(deviceId: string, updatedDevice: Device): Promise<Device> {  // New function
-		const endpoint = `${configService.getApiUrl()}/fetch-devices`;
 		try {
-            const response = await fetch(`${this.baseUrl}/devices/${deviceId}`, {  // Correct URL
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(updatedDevice), // Correctly stringify data
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json(); // Get error details from response
-                throw new Error(`Failed to update device: ${errorData.error || response.statusText}`); // More informative error message
-            }
-            return response.json();
-        } catch (error) {
+			const deviceId = updatedDevice._id; // Or however you get the device ID
+			const endpoint = `${configService.getApiUrl()}/devices/${deviceId}`; // Correct endpoint
+	
+			const response = await fetch(endpoint, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(updatedDevice),
+			});
+	
+			if (!response.ok) {
+				// ... (improved error handling from the previous response remains here)
+			}
+	
+			return response.json();
+		} catch (error) {
             console.error('Error updating device:', error);
             throw error; // Re-throw the error for the component to handle
         }

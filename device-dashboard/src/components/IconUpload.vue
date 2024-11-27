@@ -29,6 +29,7 @@ import { Plus } from '@element-plus/icons-vue'; // Import the Plus icon
 import { apiService } from '@/services/api.service';
 import { configService } from '@/services/config.service';
 import MapMarkerIcon from './MapMarkerIcon.vue'; // Import MapMarkerIcon
+import type { Device } from '@/types/device';
 
 const uploadRef = ref();
 const uploading = ref(false);
@@ -38,6 +39,7 @@ const isCustomIcon = ref(false);
 
 const props = defineProps<{
     deviceId: string;
+	device: Device | null;
     currentIconUrl: string | null;
     iconColor: string; 
 }>();
@@ -61,7 +63,7 @@ watch(() => props.deviceId, async (newDeviceId, oldDeviceId) => {
 
 const loadIcon = async () => {
     if (props.deviceId) {
-        const iconUrl = await apiService.getIcon(props.deviceId);
+        const iconUrl = await apiService.getIcon(props._id);
         if (iconUrl) {
             displayedIconUrl.value = iconUrl;
             isCustomIcon.value = true;

@@ -3,7 +3,7 @@
 		<l-map ref="map" :zoom="zoom" :center="center" @ready="handleMapReady">
 			<l-tile-layer :url="url" :attribution="attribution"></l-tile-layer>
             <l-marker 
-                v-for="device in devices" 
+				v-for="device in visibleDevices" 
                 :key="device.device_id" 
                 :lat-lng="getLatLng(device)"
                 :icon="createLeafletIcon(device)"
@@ -15,7 +15,7 @@
 
 
 <script setup lang="ts">
-import { inject, nextTick, h, ref, onMounted, watch, onUnmounted, defineComponent } from 'vue';
+import { inject, nextTick, h, ref, onMounted, watch, onUnmounted, defineComponent, computed } from 'vue';
 import 'leaflet/dist/leaflet.css';
 import * as L from 'leaflet'; // Correct import
 import { LMap, LTileLayer, LMarker, LIcon } from '@vue-leaflet/vue-leaflet'; // Import LMarker and LIcon
@@ -27,13 +27,26 @@ import MapMarkerIcon from './MapMarkerIcon.vue';
 import { renderToString } from 'vue/server-renderer';
 
 const zoom = ref(6);
-const center = ref([37.25, -119.75]);  // Initial center point (California)
+
 const url = ref('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');  // Base tile layer URL
 //Have to include attribution otherwise it is going to show blank
 const attribution = ref('&copy; <a target="_blank" href="http://osm.org/copyright">OpenStreetMap</a> contributors');
 
 const userStore = useUserStore();
-const { devices } = storeToRefs(userStore);
+const { devices, selectedDevice } = storeToRefs(userStore);
+var center = computed(() => {
+    if (selectedDevice.value?.latest_device_point) {
+        return [
+            selectedDevice.value.latest_device_point.lat,
+            selectedDevice.value.latest_device_point.lng
+        ] as L.LatLngTuple;
+    }
+    return [37.25, -119.75] as L.LatLngTuple; // Default center
+}); // Initial center point (California)
+
+const visibleDevices = computed(() => {
+    return devices.value.filter(device => device.visible);
+});
 
 // Correctly set Leaflet icon paths. Just a workaround for this library
 L.Icon.Default.mergeOptions({
@@ -70,9 +83,18 @@ watch(() => devices.value, () => {
         map.value.mapObject.fitBounds(devices.value.map(device => getLatLng(device)));
     }
 }, { deep: true });
-const isSelected = (device: Device) => {
-	return props.selectedDevice?.device_id === device.device_id;
-};
+
+// Add watch for selectedDevice changes
+watch(() => selectedDevice.value, (newDevice) => {
+    if (newDevice?.latest_device_point && map.value?.mapObject) {
+        const newCenter = [
+            newDevice.latest_device_point.lat,
+            newDevice.latest_device_point.lng
+        ] as L.LatLngTuple;
+        
+         map.value.mapObject.panTo(newCenter);
+    }
+}, { immediate: true });
 
 const debouncedUpdateMarkers = _.debounce(() => {
 	updateMarkers();
@@ -97,7 +119,6 @@ const createMarker = async (device: Device) => {
     if (!map.value?.mapObject || !device.latest_device_point) {
         return;
     }
-
     const latLng = getLatLng(device);
     try {
         const iconUrl = await getDeviceIcon(device);
@@ -144,6 +165,19 @@ onMounted(async () => {
         updateMarkers();
     }
 });
+
+
+
+// Watch for changes in devices (including visibility changes)
+watch(
+    () => devices.value,
+    () => {
+        if (map.value?.mapObject && visibleDevices.value.length > 0) {
+            map.value.mapObject.fitBounds(visibleDevices.value.map(device => getLatLng(device)));
+        }
+    },
+    { deep: true }
+);
 
 </script>
 

@@ -380,7 +380,7 @@ func saveIconFile(file multipart.File, filename string, h *Handlers) error {
 func updateDeviceIconURL(h *Handlers, deviceID primitive.ObjectID, iconURL string) error {
 	// ... your logic to update the iconURL in the database (similar to updateDeviceHandler)
 	filter := bson.M{"_id": deviceID}
-	update := bson.M{"$set": bson.M{"icon_url": iconURL}} // Assuming "icon_url" is the field in MongoDB
+	update := bson.M{"$set": bson.M{"iconUrl": iconURL}} // Assuming "icon_url" is the field in MongoDB
 
 	_, err := h.DevicesCollection.UpdateOne(context.TODO(), filter, update) // Use the correct collection
 

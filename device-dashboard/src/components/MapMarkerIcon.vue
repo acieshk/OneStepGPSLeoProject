@@ -39,8 +39,9 @@ const fetchIcon = async () => {
     if (props.deviceId) {
         try {
             // console.log("Calling apiService.getIcon with deviceId:", props.deviceId); // Log API call
-            const fetchedIconUrl = await apiService.getIcon(props.deviceId); 
-            // console.log("apiService.getIcon returned:", fetchedIconUrl); // Log API response
+            console.log("apiService.getIcon with deviceId:", props.deviceId);
+
+			const fetchedIconUrl = await apiService.getIcon(props.deviceId); 
 
             if (fetchedIconUrl) { // Check if fetchedIconUrl is not null. 
                 iconUrl.value = fetchedIconUrl;
@@ -61,10 +62,12 @@ const fetchIcon = async () => {
         isLoading.value = false; // If no deviceId, no need to load, show default
         isCustomIcon.value = false; // Make sure to reset this if deviceId is absent
     }
-	// console.log("isCustomIcon:", isCustomIcon.value);
-    // console.log("iconUrl:", iconUrl.value);
-    // console.log("isLoading:", isLoading.value);
-	// console.log("color:", color.value);
+	
+	console.log("Device: " + props.deviceId);
+	console.log("isCustomIcon:", isCustomIcon.value);
+    console.log("iconUrl:", iconUrl.value);
+    console.log("isLoading:", isLoading.value);
+	console.log("color:", color.value);
 };
 
 

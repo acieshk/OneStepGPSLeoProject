@@ -1,7 +1,12 @@
 <template>
 	<el-dialog v-model="showDialog" title="Edit Device" width="90%" @close="closeDialog">
 		<div class="upload-container">
-			<IconUpload :deviceId="deviceToEdit?._id" :uploadUrl="uploadUrl" :iconColor="deviceToEdit?.color" />
+			<IconUpload 
+				:deviceId="deviceToEdit?._id" 
+				@icon-uploaded="handleIconUpload"
+				:uploadUrl="uploadUrl" 
+				:iconColor="deviceToEdit?.color" 
+			/>
 		</div>
 		<div class="edit-table-container">
 			<el-table :data="filteredTableData" border style="width: 100%"
@@ -67,6 +72,7 @@ import IconUpload from './IconUpload.vue';
 import _ from 'lodash';
 import { apiService } from '@/services/api.service';
 import type { Device } from '@/types/device';
+import { useUserStore } from '@/stores/userStore';
 
 const isSaving = ref(false);
 
@@ -79,6 +85,23 @@ const props = defineProps<{
 
 const displayValue = (value: any) => {
 	return value === null ? '[null]' : value;  // Display [null] for actual null values
+};
+
+const handleIconUpload = (newIconUrl: string) => {
+    if (deviceToEdit.value) {
+        // Update the device's iconURL directly
+        deviceToEdit.value.iconURL = newIconUrl;
+        
+        // Optional: You might want to update the icon in the user store as well
+        const userStore = useUserStore();
+        const deviceIndex = userStore.devices.findIndex(
+            d => d.device_id === deviceToEdit.value?.device_id
+        );
+        
+        if (deviceIndex !== -1) {
+            userStore.devices[deviceIndex].iconURL = newIconUrl;
+        }
+    }
 };
 
 const saveRow = (row, index) => {
@@ -130,17 +153,23 @@ const nonEditableFields = ref([  // Array of non-editable fields
 	'_id',
 ]);
 const filteredTableData = computed(() => {
-	return tableData.value.filter(row => !hiddenFields.value.includes(row.path.join('.')));
+    console.log('Total table data:', tableData.value.length);
+    console.log('Hidden fields:', hiddenFields.value);
+    return tableData.value.filter(row => !hiddenFields.value.includes(row.path.join('.')));
 });
 
 const hiddenFields = ref([
-	// Add fields you want to hide here, using dot notation for nested fields.  For example:
-	'location.latitude',
+	// Add fields you want to hide here
+	// 'location.latitude',
 	'power.battery_level'
 ]);
 
 function flattenObjectToTableData(obj: Record<string, any>, path: string[] = [], level: number = 1): any[] {
-    const rows: any[] = [];
+	if (!obj || typeof obj !== 'object') {
+        console.warn('Invalid object passed to flattenObjectToTableData:', obj);
+        return [];
+    }
+	const rows: any[] = [];
     for (const key in obj) {
         const newPath = [...path, key];
         const value = obj[key];
@@ -211,14 +240,19 @@ const rules = reactive({}); // Add validation rules as needed
 
 // Watch deviceToEdit to update tableData reactively:
 watch(deviceToEdit, (newDevice) => {
-	if (newDevice) {
-		tableData.value = flattenObjectToTableData(newDevice);
-	} else {
-		tableData.value = [];
-	}
-	console.log("deviceToEdit changed:", newDevice);
-    console.log("deviceId changed:", newDevice?._id);
-}, { deep: true });
+    console.log("Watching deviceToEdit, newDevice is:", newDevice);
+    
+    if (newDevice) {
+        const flattenedData = flattenObjectToTableData(newDevice);
+        console.log("Flattened data length:", flattenedData.length);
+        console.log("Flattened data:", flattenedData);
+        
+        tableData.value = flattenedData;
+    } else {
+        tableData.value = [];
+    }
+    console.log("Final tableData:", tableData.value);
+}, { deep: true, immediate: true });
 
 const closeDialog = () => {
 	showDialog.value = false;
@@ -228,9 +262,11 @@ const closeDialog = () => {
 const saveDevice = async () => {
     isSaving.value = true;
     try {
-
         const updatedDevice = unflattenObject(tableData.value);
 
+		if (deviceToEdit.value?.iconURL) {
+            updatedDevice.iconURL = deviceToEdit.value.iconURL;
+        }
         // Call the API service to update the device:
         const savedDevice = await apiService.updateDevice(updatedDevice._id, updatedDevice);  // Ensure _id is correct
 
@@ -258,6 +294,7 @@ const formatLabel = (key: unknown) => {
 };
 
 const uploadUrl = computed(() => {
+	console.log("Uploading");
 	return deviceToEdit.value?.device_id ? `/devices/${deviceToEdit.value.device_id}/icon` : null // or just ''
 });
 

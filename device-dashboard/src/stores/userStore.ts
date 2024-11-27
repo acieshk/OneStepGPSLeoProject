@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import type { UserPreferences } from '@/types/userPreferences';
 import { apiService } from '@/services/api.service';
 import type { Device } from '@/types/device';
+import {ref } from 'vue';
 
 // Color palette
 // const COLOR_PALETTE = [
@@ -44,15 +45,16 @@ export const useUserStore = defineStore({
 	id: 'user',
 	state: () => ({
 		devices: [] as Device[], // Devices array managed in the store
+		selectedDevice: null as Device | null,
 		userPreferences: {} as UserPreferences,
 		loading: false,     // Add loading state
 		error: null as string | null, // Add error state
 	  }),
 
- getters: {
-    getLayout: (state) => state.userPreferences.layout,
-    getDistanceUnit: (state) => state.userPreferences.distanceUnit,
- },
+	getters: {
+		getLayout: (state) => state.userPreferences.layout,
+		getDistanceUnit: (state) => state.userPreferences.distanceUnit,
+	},
 
 	actions: {
 		assignDeviceColor(device: Device, index: number): string {
@@ -72,8 +74,8 @@ export const useUserStore = defineStore({
 				const fetchedDevices = await apiService.getDevices();
 				this.devices = await Promise.all(fetchedDevices.result_list.map(async (device: Device, index: number) => {
 					const color = this.assignDeviceColor(device, index);
-					const iconURL = await this.getDeviceIcon({ ...device, color: color });
-		
+					const iconURL = device.iconURL || await this.getDeviceIcon({ ...device, color: color });
+
 					const newDevice = {
 						...device,
 						color: color,

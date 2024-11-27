@@ -37,7 +37,7 @@
 					<template #default="scope">
 						<div class="name-status-container">
 							<div class="map-icon-cell" @click.stop="centerMapOnDevice(scope.row)">
-								<MapMarkerIcon :deviceId="scope.row.device_id" :color="scope.row.color" />
+								<MapMarkerIcon :deviceId="scope.row._id" :color="scope.row.color" />
 							</div>
 							<div>
 								<div class="name-status">
@@ -117,7 +117,8 @@ const props = defineProps<{
 
 
 const userStore = useUserStore();
-const { devices, selectedDevice, userPreferences } = toRefs(props);
+const { selectedDevice, devices } = storeToRefs(userStore);
+const { userPreferences } = toRefs(props);
 
 const emit = defineEmits<{
 	(e: 'select-device', device: Device): void;
@@ -137,21 +138,21 @@ const filteredDevices = computed(() => {
 	);
 });
 
-const filterDevices = () => {
-	// Additional filtering logic if needed
-};
+const filterDevices = () => {};
 
 // State for color picker and visibility
 const deviceColors = ref<{ [key: string]: string }>({});
 const deviceVisibility = ref<{ [key: string]: boolean }>({});
 
 const toggleDeviceVisibility = (device: Device) => {
+	console.log(device.visible);
 	updateDeviceVisibility(device, !deviceVisibility.value[device.device_id]);
 };
 
 const updateDeviceVisibility = (device: Device, visible: boolean) => {
+	device.visible = !device.visible;
 	deviceVisibility.value[device.device_id] = visible;
-	emit('update-device-visibility', device.device_id, visible);
+	// emit('update-device-visibility', device.device_id, visible);
 };
 
 const toggleAllVisibility = () => {
@@ -192,7 +193,8 @@ const getDeviceColor = (deviceId: string) => {
 };
 
 const centerMapOnDevice = (device: Device) => {
-	emit('center-map-on-device', device);
+	console.log("Center map on device:", device);
+	selectedDevice.value = device;
 };
 
 // Initialize visibility when devices prop changes

@@ -45,6 +45,8 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { Refresh, Setting, Loading } from '@element-plus/icons-vue';
 import { useRouter } from 'vue-router';
 import { RouterLink, RouterView } from 'vue-router';
+import type { Device } from './types/device';
+import { storeToRefs } from 'pinia';
 
 // Color palette
 const COLOR_PALETTE = [
@@ -70,7 +72,7 @@ const COLOR_PALETTE = [
 	'#2C3E50'  // Navy Blue
 ];
 
-const devices = ref<Device[]>([]);
+
 const selectedDevice = ref<Device | null>(null);
 const deviceColors = ref<{ [key: string]: string }>({});
 const deviceVisibility = ref<{ [key: string]: boolean }>({});
@@ -79,7 +81,8 @@ const isRefreshing = ref(false);
 const showRefreshSuccessDialog = ref(false);
 const router = useRouter();
 const userStore = useUserStore(); // Initialize the Pinia store
-
+const { fetchDevices: fetchDevicesFromStore } = userStore;
+const { devices, userPreferences } = storeToRefs(userStore);
 const layout = ref(userStore.userPreferences.layout); // Now get layout from userStore
 
 // Watch layout changes in Pinia and update locally
@@ -87,14 +90,8 @@ watch(() => userStore.userPreferences.layout, (newLayout) => {
 	layout.value = newLayout;
 });
 // Watch layout and store in localStorage
-// Watch layout and store in localStorage
 watch(layout, (newVal) => {
 	localStorage.setItem('layout', newVal);
-});
-// Corrected userPreferences (speedUnit is now a ref)
-const userPreferences = reactive({
-	distanceUnit: localStorage.getItem('distanceUnit') || 'km',
-	speedUnit: localStorage.getItem('speedUnit') || 'km/h'
 });
 
 const goToSettings = () => {
@@ -148,20 +145,30 @@ const handleRefreshDB = async () => {
 	}
 };
 
-// Function to assign a color to a device
 const assignDeviceColor = (device: Device, index: number): string => {
-	// If device already has a color, return it
-	if (device.color) return device.color;
-
-	// Assign color from the predefined palette
-	return COLOR_PALETTE[index % COLOR_PALETTE.length];
+    return device.color || COLOR_PALETTE[index % COLOR_PALETTE.length];  // Simplify color assignment
 };
 
 const fetchDevices = async () => {
 	try {
+
+		const fetchedDevices = await apiService.getDevices();
+
+		// Create a map to store device colors to ensure uniqueness
+		const deviceColorMap = {};
 		const response = await apiService.getDevices();
 
 		devices.value = response.result_list.map((device: Device, index: number) => {
+			let assignedColor = device.color;
+			if (!assignedColor) {  // If color not manually assigned. Assign based on ID.
+
+				//Hash function to map device id to index of color palette. Ensuring consistent color
+				const colorIndex = hashCode(device.device_id) % COLOR_PALETTE.length;
+				assignedColor = COLOR_PALETTE[colorIndex];
+
+
+
+			}
 			const newDevice = {
 				...device,
 				color: assignDeviceColor(device, index),
@@ -185,13 +192,23 @@ const fetchDevices = async () => {
 				}
 
 			}
-
 			return newDevice;
 		});
 	} catch (error) {
 		console.error('Error fetching devices:', error);
 	}
 };
+
+/* Simple hash function to distribute colors more evenly. */
+function hashCode(str: string) {
+	let hash = 0;
+	for (let i = 0; i < str.length; i++) {
+		const char = str.charCodeAt(i);
+		hash = ((hash << 5) - hash) + char;
+		hash = hash & hash; // Convert to 32bit integer
+	}
+	return Math.abs(hash); // Ensure positive hash code
+}
 
 const handleDeviceVisibilityUpdate = (deviceId: string, visible: boolean) => {
 	// Find the device and update its visibility
@@ -228,17 +245,20 @@ watch(() => userPreferences.speedUnit, (newVal) => {
 }, { immediate: true });
 
 onMounted(async () => {
-	try {
-		await fetchDevices();
-		const storedPreferences = await apiService.getUserPreferences("default"); // Fetch preferences first
-		userStore.updateUserPreferences(storedPreferences); // Initialize Pinia store with fetched preferences
-		router.push('/devices')
-	} catch (error) {
-		// Display error
-		ElMessage.error('Failed to fetch preferences. Please try again.');
-		console.error('Error fetching preferences:', error);
-	}
+	fetchDevicesFromStore();
+	// try {
+	// 	await fetchDevices();
+	// 	const storedPreferences = await apiService.getUserPreferences("default"); // Fetch preferences first
+	// 	userStore.updateUserPreferences(storedPreferences); // Initialize Pinia store with fetched preferences
+	// 	router.push('/devices')
+	// } catch (error) {
+	// 	// Display error
+	// 	ElMessage.error('Failed to fetch preferences. Please try again.');
+	// 	console.error('Error fetching preferences:', error);
+	// }
 });
+
+
 
 </script>
 

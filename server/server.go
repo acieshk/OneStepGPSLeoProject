@@ -442,6 +442,22 @@ func saveUserPreferencesHandler(c *gin.Context, h *Handlers) {
 	c.JSON(http.StatusOK, prefs) // Respond with the updated preferences
 }
 
+// If icon exists, return the path
+// Otherwise, return ""
+func getIconHandler(c *gin.Context) {
+	deviceId := c.Param("id") // Use Gin's param method
+
+	iconPath := filepath.Join("icons", deviceId+".png")
+
+	if _, err := os.Stat(iconPath); os.IsNotExist(err) {
+		c.String(http.StatusOK, "") // Return empty string with 200 OK if not found (Gin's way)
+		return
+	}
+
+	// For serving static files, Gin's File function is often cleaner:
+	c.File(iconPath) // Gin automatically handles Content-Type
+}
+
 func main() {
 	// Load application configuration
 	config, err := loadConfig("config.json")
@@ -481,8 +497,9 @@ func main() {
 	router.POST("/devices/:id/icon", func(c *gin.Context) { handleIconUpload(c, handlers) })
 	router.GET("/user-preferences/:userId", func(c *gin.Context) { getUserPreferencesHandler(c, handlers) })
 	router.POST("/user-preferences", func(c *gin.Context) { saveUserPreferencesHandler(c, handlers) })
+	router.GET("/getIcon/:id", getIconHandler) // Use Gin's router for getIcon
 
-	router.Static("/icons", "./icons") // Serve static files (if needed)
+	router.Static("/icons", "./icons") // Serve static files.
 
 	// Start the server *after* all initialization
 	router.Run(":" + config.ServerPort)

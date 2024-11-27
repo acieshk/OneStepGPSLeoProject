@@ -2,7 +2,7 @@
 	<div class="devices-view" :style="layoutStyle" v-if="userPreferences">
 		<DeviceList v-if="devices" :devices="devices" @select-device="handleDeviceSelect"
 			:selectedDevice="selectedDevice" :userPreferences="userPreferences"
-			@update-device-color="handleDeviceColorUpdate" @update-device-visibility="handleDeviceVisibilityUpdate" />
+			@update-device-color="handleDeviceColorUpdate" @update-device-visibility="handleDeviceVisibilityUpdate" /> 
 		<DeviceMap v-if="devices" :devices="devices" :selectedDevice="selectedDevice" :deviceColors="deviceColors"
 			:deviceVisibility="deviceVisibility" @select-device="handleDeviceSelect" />
 	</div>

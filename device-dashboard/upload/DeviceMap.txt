@@ -2,12 +2,9 @@
 	<div class="device-map-container">
 		<l-map ref="map" :zoom="zoom" :center="center" @ready="handleMapReady">
 			<l-tile-layer :url="url" :attribution="attribution"></l-tile-layer>
-            <l-marker 
-                v-for="device in devices" 
-                :key="device.device_id" 
-                :lat-lng="getLatLng(device)"
-                :icon="createLeafletIcon(device)"
-            />
+			<l-marker v-for="device in devices" :key="device.device_id" :lat-lng="getLatLng(device)">
+				<MapMarkerIcon :deviceId="device.device_id" :color="device.color" />
+			</l-marker>
 		</l-map>
 	</div>
 
@@ -57,19 +54,31 @@ const map = ref();
 let mapReady = ref(false);
 
 const handleMapReady = () => {
-    mapReady.value = true;
-    if (devices.value.length > 0) {
-        nextTick(() => {
-            map.value?.mapObject?.fitBounds(devices.value.map(device => getLatLng(device)));
-        });
-    }
+	mapReady.value = true;
+	updateMarkers();
 };
 
-watch(() => devices.value, () => {
-    if (map.value?.mapObject && devices.value.length > 0) {
-        map.value.mapObject.fitBounds(devices.value.map(device => getLatLng(device)));
-    }
-}, { deep: true });
+// const getIcon = (device:Device) => {
+// 	// Existing getIcon logic - construct icon based on iconURL or color
+// 	console.log("getIcon", device);
+// 	if (device.iconURL) {
+// 		return new L.Icon({
+
+// 			iconUrl: device.iconURL,
+// 			iconSize: [32, 32],
+// 			iconAnchor: [16, 32],
+// 		});
+// 	}
+// 	const color = device.color || 'blue';
+
+// 	return new L.Icon({
+// 		iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
+// 		iconSize: [25, 41],
+// 		iconAnchor: [12, 41],
+// 	});
+
+// };
+
 const isSelected = (device: Device) => {
 	return props.selectedDevice?.device_id === device.device_id;
 };
@@ -79,43 +88,50 @@ const debouncedUpdateMarkers = _.debounce(() => {
 }, 300);
 
 
+const markers = ref({});  // Stores markers by device_id
 const { getDeviceIcon } = userStore; 
 
-const createLeafletIcon = (device: Device) => {
-    // Use the iconURL that should already be in the device object from userStore
-    return L.icon({
-        iconUrl: device.iconURL || `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${device.color}.png`,
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [0, -41]
-    });
-};
-
-
 const createMarker = async (device: Device) => {
-	console.log("createMarker");
-    if (!map.value?.mapObject || !device.latest_device_point) {
+    console.log("Creating marker for device", device);
+
+    if (!map.value || !map.value.mapObject || !device.latest_device_point) {
         return;
     }
 
-    const latLng = getLatLng(device);
-    try {
-        const iconUrl = await getDeviceIcon(device);
-        
-        // Create a simple div icon with an img element
-        const icon = L.divIcon({
-            html: `<img src="${iconUrl}" style="width: 25px; height: 41px;" />`,
-            className: "",
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [0, -41]
-        });
 
-        const marker = L.marker(latLng, { icon }).addTo(map.value.mapObject);
-        markers.value[device.device_id] = marker;
-    } catch (error) {
-        console.error('Error creating marker:', error);
-    }
+    const latLng = getLatLng(device);
+
+	try {
+		// Use getDeviceIcon from the store:
+		const iconUrl = await getDeviceIcon(device);  // Use the centralized function and await
+
+		const iconComponent = defineComponent({ // Corrected defineComponent
+			template: `<MapMarkerIcon :iconUrl="iconUrl" :color="device.color" />`,  // Simplified template
+			props: ['device', 'iconUrl'],  // No need to pass the entire device if you have the iconUrl
+			components: { MapMarkerIcon }
+
+		});
+
+		const iconHtml = await renderToString(h(iconComponent, { iconUrl: iconUrl, device: device })); // Pass iconUrl to component
+
+
+		const icon = L.divIcon({
+			html: iconHtml,
+			className: "",
+			iconSize: [24, 36], 
+			iconAnchor: [12, 36],
+			popupAnchor: [0, -36]
+		});
+
+		const marker = L.marker(latLng, { icon }).addTo(map.value.mapObject);
+		markers.value[device.device_id] = marker;
+
+	} catch (error) {
+		console.error('Error creating marker:', error); // Enhanced error handling
+		// Handle the error, perhaps add a default marker or log the error
+	}
+
+
 };
 
 
@@ -137,13 +153,15 @@ const updateMarkers = async() => {
 	}
 };
 
-onMounted(async () => {
-    console.log("Component mounted");
-    await userStore.fetchDevices(); // Make sure devices are loaded
-    if (mapReady.value) {
-        updateMarkers();
-    }
-});
+
+// Watch for changes to the devices array and re-render markers if needed
+watch(() => devices.value, () => { // Correctly call fitBounds in the watcher
+
+	console.log(devices);
+	if (map.value?.mapObject && devices.value.length > 0) { // Check if map and devices are available
+		map.value.mapObject.fitBounds(devices.value.map(device => getLatLng(device))); // Call fitBounds here
+	}
+}, { deep: true });
 
 </script>
 

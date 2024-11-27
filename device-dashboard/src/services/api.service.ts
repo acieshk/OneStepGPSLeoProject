@@ -59,7 +59,7 @@ import type { Device } from '@/types/device';
 			});
 	
 			if (!response.ok) {
-				// ... (improved error handling from the previous response remains here)
+				console.error('Response was not ok');
 			}
 	
 			return response.json();
@@ -126,6 +126,36 @@ import type { Device } from '@/types/device';
             throw error; // Re-throw to be handled by the component
         }
     }
+
+	// return path of the icon, or null if icon is not found
+	async getIcon(deviceId: string): Promise<string | null> {
+		if (!deviceId) {
+			return null;
+		}
+	
+		const iconUrl = `${configService.getApiUrl()}/getIcon/${deviceId}`; // Correct URL
+	
+		try {
+			const response = await fetch(iconUrl);
+			if (!response.ok) {  // Check for any server error (not just 404)
+				const errorText = await response.text()
+				console.error(`Error getting icon for device ${deviceId}:`, response.status,  errorText);
+				throw new Error (`Error getting icon for device ${deviceId}: ${response.status} ${errorText}`) // Throw error for the component to handle
+			}
+	
+			const iconPathFromServer = await response.text(); // Get the icon path from the server
+	
+			if (iconPathFromServer !== "") {  // Custom icon exists
+				return `${configService.getApiUrl()}${iconPathFromServer}`; // Construct and return the full URL
+			} else {
+				return null; // No custom icon, return null (for default icon logic)
+			}
+	
+		} catch (error) {
+			console.error("Error fetching icon:", error);
+			return null;  // Handle the error as needed (e.g., return null for default icon)
+		}
+	}
 
 	async saveUserPreferences(preferences: UserPreferences): Promise<UserPreferences> {
 		const endpoint = `${configService.getApiUrl()}`;

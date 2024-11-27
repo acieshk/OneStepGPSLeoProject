@@ -37,14 +37,9 @@
 					<template #default="scope">
 						<div class="name-status-container">
 							<div class="map-icon-cell" @click.stop="centerMapOnDevice(scope.row)">
-								<svg class="map-icon" width="24" height="36" viewBox="0 0 24 36"
-									xmlns="http://www.w3.org/2000/svg">
-									<path d="M12 0C5.4 0 0 5.4 0 12c0 7.2 12 24 12 24s12-16.8 12-24c0-6.6-5.4-12-12-12z"
-										:fill="getDeviceColor(scope.row.device_id)" stroke="white" stroke-width="2" />
-									<circle cx="12" cy="12" r="4" fill="white" />
-								</svg>
+								<MapMarkerIcon :deviceId="scope.row.device_id" :color="scope.row.color" />
 							</div>
-							<div> <!-- Added a wrapping div here -->
+							<div>
 								<div class="name-status">
 									<span :class="['status-indicator', scope.row.online ? 'online' : 'offline']"></span>
 									<span class="device-name">{{ scope.row.display_name }}</span>
@@ -96,20 +91,21 @@
 				</el-table-column>
 			</el-table>
 		</div>
-		<device-edit-dialog v-model="editDialogVisible" :device-to-edit="deviceToEdit"
-			@device-updated="handleDeviceUpdated"></device-edit-dialog>
+		<device-edit-dialog v-if="deviceToEdit" v-model="editDialogVisible" :device-to-edit="deviceToEdit" @device-updated="handleDeviceUpdated"></device-edit-dialog>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch, toRefs } from 'vue';
 import { Search } from '@element-plus/icons-vue';
-import { Device } from '@/App.vue';
+
+import MapMarkerIcon from '@/components/MapMarkerIcon.vue';
 import { convertUnits } from '@/utils/UnitConverter';
 import DeviceEditDialog from './DeviceEditDialog.vue';
 import { ElMessage } from 'element-plus';
 import { useUserStore } from '@/stores/userStore'; // Import your user store
 import { storeToRefs } from 'pinia';
+import type { Device } from '@/types/device';
 
 
 
@@ -119,8 +115,9 @@ const props = defineProps<{
 	userPreferences: { distanceUnit: string, speedUnit: string };
 }>();
 
+
 const userStore = useUserStore();
-const { userPreferences } = storeToRefs(userStore); 
+const { devices, selectedDevice, userPreferences } = toRefs(props);
 
 const emit = defineEmits<{
 	(e: 'select-device', device: Device): void;
@@ -152,13 +149,10 @@ const toggleDeviceVisibility = (device: Device) => {
 	updateDeviceVisibility(device, !deviceVisibility.value[device.device_id]);
 };
 
-
-
 const updateDeviceVisibility = (device: Device, visible: boolean) => {
 	deviceVisibility.value[device.device_id] = visible;
 	emit('update-device-visibility', device.device_id, visible);
 };
-
 
 const toggleAllVisibility = () => {
 	const newVisibility = !allVisible.value;
@@ -287,10 +281,6 @@ const formatDateTime = (dateString?: string): string => {
 	return new Date(dateString).toLocaleString();
 };
 
-
-
-
-
 const editDialogVisible = ref(false);
 const deviceToEdit = ref<Device | null>(null); // Store device to edit
 
@@ -307,9 +297,7 @@ const handleDeviceUpdated = (updatedDevice: Device) => {
 	if (index !== -1) {
 		// Update the device in the array
 		props.devices.splice(index, 1, updatedDevice);
-
 	}
-
 	ElMessage.success("Device information updated")
 };
 

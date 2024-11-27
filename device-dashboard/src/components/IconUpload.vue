@@ -1,29 +1,84 @@
 <template>
-	<div class="icon-upload-container">
-		<el-upload :action="uploadUrl" :on-success="handleSuccess" :on-error="handleError" :show-file-list="false"
-			:before-upload="handleBeforeUpload" :headers="{ 'Content-Type': 'multipart/form-data' }">
-			<el-button type="primary" size="small" :disabled="!uploadUrl">
-				<el-icon v-if="!currentIconUrl">
-					<Plus />
-				</el-icon> </el-button>
-			<span v-if="!currentIconUrl">Upload Icon</span>
-			<div v-else class="uploaded-icon"> </div>
-			<img :src="currentIconUrl" alt="Device Icon"> </img>
-			<span>Replace Icon</span>
-		</el-upload>
-	</div>
+    <div class="icon-upload-container">
+        <div class="current-icon" v-if="displayedIconUrl || (!displayedIconUrl && props.deviceId)">
+            <span>Customized Icon:</span>
+            <img v-if="isCustomIcon" :src="displayedIconUrl" alt="Device Icon" class="icon-display" @error="handleImageError">
+            <MapMarkerIcon v-else :deviceId="props.deviceId" :color="iconColor" />
+        </div>
 
+        <el-upload
+            :show-file-list="false"
+            :before-upload="handleBeforeUpload"
+            :auto-upload="false"
+            :on-change="handleFileChange"
+            ref="uploadRef"
+        >
+            <el-button type="primary" size="small" :disabled="uploading" @click="handleUploadClick">
+                <el-icon v-if="!isCustomIcon"><Plus /></el-icon> <span v-if="!isCustomIcon">Upload Icon</span> <span
+                    v-else>Replace Icon</span>
+            </el-button>
+        </el-upload>
+
+    </div>
 </template>
 
 <script setup lang="ts">
-import { ref, defineEmits, defineProps } from 'vue';
+import { ref, defineEmits, defineProps, nextTick, watch, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Plus } from '@element-plus/icons-vue'; // Import the Plus icon
+import { apiService } from '@/services/api.service';
+import { configService } from '@/services/config.service';
+import MapMarkerIcon from './MapMarkerIcon.vue'; // Import MapMarkerIcon
+
+const uploadRef = ref();
+const uploading = ref(false);
+const defaultIconUrl = ref(new URL('/src/assets/default.png', import.meta.url).href); // Provide default path
+const displayedIconUrl = ref(defaultIconUrl.value); // Use a separate ref for display
+const isCustomIcon = ref(false);
 
 const props = defineProps<{
-	uploadUrl: string | null;
-	currentIconUrl: string | null;
+    deviceId: string;
+    currentIconUrl: string | null;
+    iconColor: string; 
 }>();
+
+// Call getIcon and set displayedIconUrl on mount and when deviceId changes:
+onMounted(async () => {
+    await loadIcon();
+	console.log(props.iconColor);
+});
+
+watch(() => props.deviceId, async (newDeviceId, oldDeviceId) => {
+    // Only load icon if deviceId changes AND there's a new deviceId:
+    if (newDeviceId && newDeviceId !== oldDeviceId) {
+        console.log("deviceId changed:", props.deviceId);
+        await loadIcon();
+    }
+});
+
+
+
+
+const loadIcon = async () => {
+    if (props.deviceId) {
+        const iconUrl = await apiService.getIcon(props.deviceId);
+        if (iconUrl) {
+            displayedIconUrl.value = iconUrl;
+            isCustomIcon.value = true;
+        } else {
+            displayedIconUrl.value = null;  // Or '' if you prefer, but null is generally clearer
+            isCustomIcon.value = false;
+        }
+    }
+};
+
+
+
+const currentIconUrl = ref(props.currentIconUrl);
+
+watch(() => props.currentIconUrl, (newUrl) => {
+	currentIconUrl.value = newUrl;
+});
 
 const emit = defineEmits(['icon-uploaded']);
 
@@ -34,6 +89,11 @@ const handleSuccess = (response) => {
 		message: 'Icon uploaded successfully.',
 		type: 'success',
 	});
+};
+
+const handleImageError = (event) => { // Function to display default icon
+    console.log("Failed to load custom icon. Displaying default icon.");
+	displayedIconUrl.value = defaultIconUrl.value;
 };
 
 const handleError = (err) => {
@@ -54,36 +114,87 @@ const handleBeforeUpload = (file) => {
 	}
 	return (isJPG || isPNG) && isLt2M; // Must return a value!
 };
+
+
+const handleFileChange = async (uploadFile, fileList) => {
+	if (uploadFile && props.deviceId) {
+		try {
+			uploading.value = true;
+			const response = await apiService.uploadDeviceIcon(props.deviceId, uploadFile.raw);
+
+			currentIconUrl.value = `${configService.getApiUrl()}/icons/${props.deviceId}.png`; // Update icon URL
+
+			emit('icon-uploaded', currentIconUrl.value); // Emit the updated URL
+
+			ElMessage.success('Icon uploaded successfully.');
+
+		} catch (error) {
+			console.error('Icon upload failed:', error);
+			ElMessage.error('Icon upload failed. Please try again.');
+		} finally {
+			uploading.value = false;
+			(uploadRef.value as any).clearFiles(); // Clear the selected files after upload
+			await loadIcon(); 
+		}
+	}
+};
+
+
+
+const handleUploadClick = () => {  //  Only triggers the file picker
+	(uploadRef.value as any).handleRemove((uploadRef.value as any).uploadFiles[0]); // Clear the upload component's file list
+	(uploadRef.value as any).handleClick();
+
+};
+
 </script>
 <style scoped>
-.icon-upload-container {
-  display: flex;
-  justify-content: flex-start; /* Align items to the left */
-  align-items: center;        /* Vertically center items */
-  margin-bottom: 10px;       /* Add spacing below the container */
-  padding: 10px;             /* Add some padding around content */
-  border: 1px solid #ebeef5; /* Subtle border for visual separation */
-  border-radius: 4px;        /* Rounded corners */
+..icon-upload-container {
+	display: flex;
+	align-items: center;
+	/* Align items vertically */
+	gap: 10px;
+	/* Add some space between icon and uploader */
 }
 
-.icon-upload-container:deep(.el-upload) { /* Style the upload button container */
-  display: inline-flex; /* Use inline-flex to prevent button from stretching full width */
-  align-items: center; /* Vertically center button content */
+
+.current-icon {
+	display: flex;
+	align-items: center;
+	/* Vertically align icon and label */
+}
+
+.icon-display {
+	width: 32px;
+	/* Set desired width */
+	height: 32px;
+	/* Set desired height */
+	margin-left: 5px;
+	/* Small margin between label and icon */
+}
+
+.icon-upload-container:deep(.el-upload) {
+	/* Style the upload button container */
+	display: inline-flex;
+	/* Use inline-flex to prevent button from stretching full width */
+	align-items: center;
+	/* Vertically center button content */
 }
 
 
 .uploaded-icon {
-  margin-left: 10px;
-  display: inline-flex;  /* Use inline-flex for proper alignment with text*/
-  align-items: center; /* Align items vertically */
+	margin-left: 10px;
+	display: inline-flex;
+	/* Use inline-flex for proper alignment with text*/
+	align-items: center;
+	/* Align items vertically */
 }
 
 .uploaded-icon img {
-  width: 32px;
-  height: 32px;
-  margin-right: 5px;  /* Add a little space between the icon and the text */
+	width: 32px;
+	height: 32px;
+	margin-right: 5px;
+	/* Add a little space between the icon and the text */
 
 }
-
-
 </style>

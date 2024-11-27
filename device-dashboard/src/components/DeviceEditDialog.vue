@@ -1,8 +1,7 @@
 <template>
 	<el-dialog v-model="showDialog" title="Edit Device" width="90%" @close="closeDialog">
 		<div class="upload-container">
-			<IconUpload :uploadUrl="uploadUrl" :currentIconUrl="deviceToEdit?.iconURL"
-				@icon-uploaded="handleIconUploaded" />
+			<IconUpload :deviceId="deviceToEdit?._id" :uploadUrl="uploadUrl" :iconColor="deviceToEdit?.color" />
 		</div>
 		<div class="edit-table-container">
 			<el-table :data="filteredTableData" border style="width: 100%"
@@ -107,18 +106,6 @@ const validateDevice = (device: Device): string[] => {
 }
 
 const tableData = ref([] as any[]);
-// const tableData = computed(() => {
-// 	if (!deviceToEdit.value) return [];
-// 	const rows: any[] = [];
-// 	flattenObjectToTableData(deviceToEdit.value, rows);
-
-// 	rows.forEach(row => {
-// 		row.editing = false;
-// 		row.unit = getUnit(row.path);
-// 		row.originalValue = row.value; // Store original value
-// 	});
-// 	return rows;
-// });
 
 const getUnit = (path: string[]): string | null => {
 	if (path.join('.') === 'location.altitude') return 'meters';
@@ -229,6 +216,8 @@ watch(deviceToEdit, (newDevice) => {
 	} else {
 		tableData.value = [];
 	}
+	console.log("deviceToEdit changed:", newDevice);
+    console.log("deviceId changed:", newDevice?._id);
 }, { deep: true });
 
 const closeDialog = () => {

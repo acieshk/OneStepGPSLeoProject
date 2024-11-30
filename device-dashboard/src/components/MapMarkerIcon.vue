@@ -13,9 +13,11 @@
 import { defineProps, ref, onMounted, watch, toRefs } from 'vue';
 import { apiService } from '@/services/api.service';
 import type { Device } from '@/types/device';
+import { collapseItemProps } from 'element-plus';
 
 const props = defineProps<{
     deviceId: string;
+	device: Device;
     color: string;
 }>();
 
@@ -33,6 +35,9 @@ const handleImageError = () => {
 
 
 const fetchIcon = async () => {
+	console.log("URL: ", props.device.iconURL);
+	// Example implementation: Fetching icon from a mock API endpoint
+
 	console.log("fetchIcon called with deviceId:", props.deviceId); // Log when fetchIcon starts
 
     isLoading.value = true;
@@ -42,7 +47,7 @@ const fetchIcon = async () => {
             console.log("apiService.getIcon with deviceId:", props.deviceId);
 
 			const fetchedIconUrl = await apiService.getIcon(props.deviceId); 
-
+			console.log("FETCH ICONH URL", fetchedIconUrl);
             if (fetchedIconUrl) { // Check if fetchedIconUrl is not null. 
                 iconUrl.value = fetchedIconUrl;
                 isCustomIcon.value = true;

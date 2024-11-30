@@ -1,10 +1,8 @@
 <template>
 	<div class="devices-view" :style="layoutStyle" v-if="userPreferences">
 		<DeviceList v-if="devices" :devices="devices" @select-device="handleDeviceSelect"
-			:selectedDevice="selectedDevice" :userPreferences="userPreferences"
-			@update-device-color="handleDeviceColorUpdate" @update-device-visibility="handleDeviceVisibilityUpdate" /> 
-		<DeviceMap v-if="devices" :devices="devices" :selectedDevice="selectedDevice" :deviceColors="deviceColors"
-			:deviceVisibility="deviceVisibility" @select-device="handleDeviceSelect" />
+			:selectedDevice="selectedDevice" :userPreferences="userPreferences" @update-device="handleDeviceUpdate"/> 
+		<DeviceMap v-if="devices" :devices="devices" :selectedDevice="selectedDevice" @select-device="handleDeviceSelect" />
 	</div>
 </template>
 
@@ -15,13 +13,26 @@ import { useUserStore } from '@/stores/userStore';
 import DeviceList from './DeviceList.vue';
 
 import DeviceMap from './DeviceMap.vue';
+import type { Device } from '@/types/device';
 
 const userStore = useUserStore();
 
-const { devices, userPreferences } = storeToRefs(userStore);
-
+const { devices , userPreferences } = storeToRefs(userStore);
+const emit = defineEmits<{
+	(e: 'refresh-list'): void;
+}>();
 const selectedDevice = ref(null);
 
+const handleDeviceUpdate = (updatedDevice: Device) => {
+  // Create a new array with the updated device
+  const updatedDevices = devices.value.map(device => 
+    device.device_id === updatedDevice.device_id ? updatedDevice : device
+  );
+  
+  // Update the store directly
+  userStore.devices = updatedDevices;
+  emit('refresh-list');
+};
 
 const handleDeviceSelect = (device) => {
 	selectedDevice.value = device;

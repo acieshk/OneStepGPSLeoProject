@@ -1,38 +1,37 @@
 <template>
-	<div class="app-container">
-		<header class="dashboard-header">
-			<h1>Device Dashboard</h1>
-			<div class="header-buttons">
-				<router-link to="/some-route">
-					<el-button type="primary" @click="showRefreshDialog" :disabled="isRefreshing">
-						<span v-if="isRefreshing">Refreshing...</span>
-						<span v-else>Refresh Data</span>
-					</el-button>
-				</router-link>
-				<router-link to="/user-preferences">
-					<el-button type="primary">Settings</el-button>
-				</router-link>
-			</div>
-		</header>
-
-		<router-view />
-
-		<el-dialog v-model="showDialog" title="Refresh Database" width="30%">
-			<span>Do you want to update the DB?</span>
-			<template #footer>
-				<span class="dialog-footer">
-
-					<el-button @click="showDialog = false">Cancel</el-button>
-					<el-button type="primary" @click="handleRefreshDB" :loading="isRefreshing">
-
-						Confirm
-					</el-button>
-				</span>
-			</template>
-
-		</el-dialog>
-	</div>
-</template>
+	<el-container class="app-container">
+	  <el-header class="dashboard-header">
+		<h1>Device Dashboard</h1>
+		<div class="header-buttons">
+		  <router-link to="/some-route">
+			<el-button type="primary" @click="showRefreshDialog" :disabled="isRefreshing">
+			  <span v-if="isRefreshing">Refreshing...</span>
+			  <span v-else>Refresh Data</span>
+			</el-button>
+		  </router-link>
+		  <router-link to="/user-preferences">
+			<el-button type="primary">Settings</el-button>
+		  </router-link>
+		</div>
+	  </el-header>
+  
+	  <el-main> <router-view /> </el-main>
+  
+  
+	  <el-dialog v-model="showDialog" title="Refresh Database" width="30%">
+		<span>Do you want to update the DB?</span>
+		<template #footer>
+		  <span class="dialog-footer">
+			<el-button @click="showDialog = false">Cancel</el-button>
+			<el-button type="primary" @click="handleRefreshDB" :loading="isRefreshing">
+			  Confirm
+			</el-button>
+		  </span>
+		</template>
+	  </el-dialog>
+	</el-container>
+  </template>
+  
 
 
 <script setup lang="ts">
@@ -82,7 +81,7 @@ const showRefreshSuccessDialog = ref(false);
 const router = useRouter();
 const userStore = useUserStore(); // Initialize the Pinia store
 const { fetchDevices: fetchDevicesFromStore } = userStore;
-const { devices, userPreferences } = storeToRefs(userStore);
+const { id, devices, userPreferences } = storeToRefs(userStore);
 const layout = ref(userStore.userPreferences.layout); // Now get layout from userStore
 
 // Watch layout changes in Pinia and update locally
@@ -244,18 +243,21 @@ watch(() => userPreferences.speedUnit, (newVal) => {
 	localStorage.setItem('speedUnit', newVal);
 }, { immediate: true });
 
+const fetchPreferences = async () => {
+
+try {
+	const fetchedPreferences = await apiService.getUserPreferences(id);
+	// Update the Pinia store
+	userStore.updateUserPreferences(fetchedPreferences);
+} catch (error) {
+	// Handle the error, e.g., display a message to the user
+	console.error('Failed to fetch user preferences:', error);
+}
+};
+
 onMounted(async () => {
 	fetchDevicesFromStore();
-	// try {
-	// 	await fetchDevices();
-	// 	const storedPreferences = await apiService.getUserPreferences("default"); // Fetch preferences first
-	// 	userStore.updateUserPreferences(storedPreferences); // Initialize Pinia store with fetched preferences
-	// 	router.push('/devices')
-	// } catch (error) {
-	// 	// Display error
-	// 	ElMessage.error('Failed to fetch preferences. Please try again.');
-	// 	console.error('Error fetching preferences:', error);
-	// }
+	fetchPreferences();
 });
 
 
@@ -289,6 +291,10 @@ body {
 	display: flex;
 	flex-direction: column;
 	height: 100vh;
+}
+
+.el-main {
+  padding: 0;
 }
 
 .header-buttons {

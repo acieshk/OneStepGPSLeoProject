@@ -4,30 +4,6 @@ import { apiService } from '@/services/api.service';
 import type { Device } from '@/types/device';
 import {ref } from 'vue';
 
-// Color palette
-// const COLOR_PALETTE = [
-// 	'#1F77B4', // Muted Blue
-// 	'#FF7F0E', // Vivid Orange
-// 	'#2CA02C', // Fresh Green
-// 	'#D62728', // Brick Red
-// 	'#9467BD', // Soft Purple
-// 	'#8C564B', // Brown
-// 	'#E377C2', // Pink
-// 	'#7F7F7F', // Gray
-// 	'#BCBD22', // Olive Green
-// 	'#17BECF', // Teal
-// 	'#3498DB', // Bright Blue
-// 	'#2ECC71', // Emerald Green
-// 	'#E74C3C', // Coral Red
-// 	'#9B59B6', // Lavender
-// 	'#34495E', // Dark Slate Blue
-// 	'#16A085', // Sea Green
-// 	'#F39C12', // Sunflower Yellow
-// 	'#2980B9', // Deep Blue
-// 	'#8E44AD', // Deep Purple
-// 	'#2C3E50'  // Navy Blue
-// ];
-
 // using https://github.com/pointhi/leaflet-color-markers
 const COLOR_PALETTE = [
 	"blue",

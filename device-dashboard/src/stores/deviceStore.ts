@@ -1,42 +1,25 @@
 // src/stores/deviceStore.ts
 import { defineStore } from 'pinia';
-import type { Device, UserPreferences } from '@/types/device';
+import type { Device } from '@/types/device';
 
-export const useDeviceStore = defineStore('devices', {
+
+export const useDeviceStore = defineStore({
+  id: 'device',
   state: () => ({
-    devices: [] as Device[],
-    preferences: {
-      sortOrder: 'name',
-      hiddenDevices: [],
-      deviceIcons: {}
-    } as UserPreferences,
-    loading: false,
-    error: null as string | null
+	loaded: false,						// if device is already loaded
+	loading: false,                    	// Add loading state. Initialized but not loaded
+    devices: [] as Device[],			// Devices array managed in the store	
+	selectedDevice: null as Device | null,
   }),
-
+  getters: {
+	
+  },
   actions: {
-    async fetchDevices() {
-      this.loading = true;
-      try {
-        // For now, we'll load the JSON directly
-        const response = await fetch('/api/devices');
-        const data = await response.json();
-        this.devices = data.result_list;
-      } catch (error) {
-        this.error = 'Failed to fetch devices';
-        console.error(error);
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    updatePreferences(prefs: Partial<UserPreferences>) {
-      this.preferences = {
-        ...this.preferences,
-        ...prefs
-      };
-      // Save to localStorage
-      localStorage.setItem('devicePreferences', JSON.stringify(this.preferences));
-    }
+	selectDevice(_id: string) {  // Use regular function
+		this.selectedDevice = this.devices.find((device) => device._id === _id) ?? null;
+	},
+	deselectDevice: () => {
+		this.selectedDevice = null;
+	}
   }
 });

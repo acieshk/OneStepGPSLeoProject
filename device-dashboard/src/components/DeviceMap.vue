@@ -66,7 +66,7 @@ const getLatLng = (device: Device): L.LatLngTuple => { // Explicitly return L.La
 const injectedLayoutPreference = inject<string | undefined>('layoutPreference');
 const layoutPreference = ref(injectedLayoutPreference);
 
-const map = ref();
+let map = ref();
 let mapReady = ref(false);
 
 const handleMapReady = () => {
@@ -182,8 +182,10 @@ watch(
 </script>
 
 <style scoped>
-.device-map-container {
-	height: 100%;
-	width: 100%;
+.page-container {
+    display: flex;         /* Enable flexbox */
+    flex-direction: column; /* Align content vertically */
+    height: 100%;
+    width: 100%;        /* Important if the parent doesn't have a width */
 }
 </style>

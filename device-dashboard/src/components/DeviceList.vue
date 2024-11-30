@@ -37,7 +37,7 @@
 					<template #default="scope">
 						<div class="name-status-container">
 							<div class="map-icon-cell" @click.stop="centerMapOnDevice(scope.row)">
-								<MapMarkerIcon :deviceId="scope.row._id" :color="scope.row.color" />
+								<MapMarkerIcon :deviceId="scope.row._id" :device="scope.row._id" :color="scope.row.color" />
 							</div>
 							<div>
 								<div class="name-status">
@@ -112,17 +112,16 @@ import type { Device } from '@/types/device';
 const props = defineProps<{
 	devices: Device[];
 	selectedDevice: Device | null;
-	userPreferences: { distanceUnit: string, speedUnit: string };
 }>();
 
 
 const userStore = useUserStore();
-const { selectedDevice, devices } = storeToRefs(userStore);
-const { userPreferences } = toRefs(props);
+const { selectedDevice, devices, userPreferences } = storeToRefs(userStore);
+// const { } = toRefs(props);
 
 const emit = defineEmits<{
 	(e: 'select-device', device: Device): void;
-	(e: 'update-device-color', deviceId: string, color: string): void;
+	(e: 'update-device', device: Device): void;
 	(e: 'update-device-visibility', deviceId: string, visible: boolean): void;
 }>();
 
@@ -151,8 +150,7 @@ const toggleDeviceVisibility = (device: Device) => {
 
 const updateDeviceVisibility = (device: Device, visible: boolean) => {
 	device.visible = !device.visible;
-	deviceVisibility.value[device.device_id] = visible;
-	// emit('update-device-visibility', device.device_id, visible);
+	deviceVisibility.value[device.device_id] = visible;	
 };
 
 const toggleAllVisibility = () => {
@@ -206,14 +204,12 @@ watch(
 			initialVisibility[device.device_id] = true; // Default to visible
 		});
 		deviceVisibility.value = initialVisibility;
-
 	},
-	{ immediate: true }
+	{ deep: true, immediate: true }
 );
 
 onMounted(() => {
-	// props.devices.forEach(device => {
-	// });
+
 });
 
 // Methods
@@ -292,15 +288,26 @@ const openEditDialog = (device: Device) => {
 	editDialogVisible.value = true;
 };
 
-const handleDeviceUpdated = (updatedDevice: Device) => {
-	// Find the index of the updated device in the devices array
-	const index = props.devices.findIndex(d => d.device_id === updatedDevice.device_id);
 
-	if (index !== -1) {
-		// Update the device in the array
-		props.devices.splice(index, 1, updatedDevice);
-	}
-	ElMessage.success("Device information updated")
+const handleDeviceUpdated = (updatedDevice: Device) => {
+  // Update in userStore
+  const storeIndex = userStore.devices.findIndex(d => d.device_id === updatedDevice.device_id);
+  if (storeIndex !== -1) {
+    userStore.devices[storeIndex] = updatedDevice;
+  }
+  
+  // Update in props (for backward compatibility)
+  const propsIndex = props.devices.findIndex(d => d.device_id === updatedDevice.device_id);
+  if (propsIndex !== -1) {
+    props.devices[propsIndex] = updatedDevice;
+  }
+  
+  // Update selectedDevice if it's the one being edited
+  if (selectedDevice.value?.device_id === updatedDevice.device_id) {
+    selectedDevice.value = updatedDevice;
+  }
+  emit('update-device', updatedDevice);
+  ElMessage.success("Device information updated");
 };
 
 

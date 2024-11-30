@@ -132,9 +132,12 @@ import type { Device } from '@/types/device';
 		if (!deviceId) {
 			return null;
 		}
+		return `${configService.getApiUrl()}/icons/${deviceId}.png`;
 	
 		const iconUrl = `${configService.getApiUrl()}/getIcon/${deviceId}`; // Correct URL
-	
+		console.log("GET ICON:" + deviceId);
+		console.log(`${configService.getApiUrl()}`)
+		console.log("icon url" + iconUrl);
 		try {
 			const response = await fetch(iconUrl);
 			if (!response.ok) {  // Check for any server error (not just 404)

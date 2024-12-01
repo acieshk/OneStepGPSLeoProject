@@ -491,7 +491,7 @@ func main() {
 	router.Use(cors.Default())
 
 	// Define routes
-	router.GET("/fetch-devices", func(c *gin.Context) { fetchAndStoreDevices(c, handlers) })
+	router.POST("/fetch-devices", func(c *gin.Context) { fetchAndStoreDevices(c, handlers) })
 	router.GET("/devices", func(c *gin.Context) { getDevices(c, handlers) })
 	router.PUT("/devices/:id", func(c *gin.Context) { updateDeviceHandler(c, handlers) })
 	router.POST("/devices/:id/icon", func(c *gin.Context) { handleIconUpload(c, handlers) })

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { Device } from 'src/types/device';
-import { apiService, getDevices } from 'src/api/apiService';
+import { apiService } from 'src/api/apiService';
 import { ref } from 'vue';
 
 export type PrimitiveValue = string | number | boolean | null | undefined;
@@ -22,7 +22,7 @@ export const useDeviceStore = defineStore('device', () => { // No object, just t
 		if (deviceLoading.value == true) return;
 		deviceLoading.value = true;
 		try {
-			const loadedDevices = await getDevices(); // Call the service function
+			const loadedDevices = await apiService.getDevices(); // Call the service function
 
 			// Ensure 'visible' property exists and defaults to true:
 			devices.value = loadedDevices.map(device => ({

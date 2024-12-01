@@ -21,23 +21,6 @@ const config = {
 	}
 };
 
-export async function getDevices(): Promise<Device[]> {
-	try {
-		const response = await fetch(`${config.api.baseUrl}:${config.api.port}${config.api.endpoints.devices}`);
-		if (!response.ok) {
-			const errorText = await response.text();
-			throw new Error(`Network response was not ok: ${response.status} - ${errorText}`);
-		}
-		const data = await response.json();
-		const devices = data.result_list;
-
-		console.log(devices);
-		return devices as Device[]; // Type assertion after validation
-	} catch (error) {
-		console.error('Error fetching devices:', error);
-		throw error;
-	}
-}
 
 class ApiService {
 	private static instance: ApiService;
@@ -55,35 +38,41 @@ class ApiService {
 		return ApiService.instance;
 	}
 
-	async getDevices() {
+	async getDevices(): Promise<Device[]> {
 		try {
-			const response = await fetch(`${this.baseUrl}/devices`);
+			const response = await fetch(`${config.api.baseUrl}:${config.api.port}${config.api.endpoints.devices}`);
 			if (!response.ok) {
-				throw new Error('Network response was not ok');
+				const errorText = await response.text();
+				throw new Error(`Network response was not ok: ${response.status} - ${errorText}`);
 			}
-			return response.json();
+			const data = await response.json();
+			const devices = data.result_list;
+	
+			console.log(devices);
+			return devices as Device[]; // Type assertion after validation
 		} catch (error) {
 			console.error('Error fetching devices:', error);
 			throw error;
 		}
 	}
 
-
-
-
-	// async refreshDatabase() {
-	// 	const endpoint = `${configService.getApiUrl()}/fetch-devices`;
-	//     try {
-	//         const response = await fetch(`${this.baseUrl}/fetch-devices`);
-	//         if (!response.ok) {
-	//             throw new Error('Network response was not ok');
-	//         }
-	//         return response.json();
-	//     } catch (error) {
-	//         console.error('Error refreshing database:', error);
-	//         throw error;
-	//     }
-	// }
+	async refreshDatabase(): Promise<string> { 
+		try {
+			const response = await fetch(`${config.api.baseUrl}:${config.api.port}${config.api.endpoints.refreshDatabase}`, { // Use the correct config value for endpoint
+				method: 'POST', // POST is usually appropriate for triggering an action
+			});
+	
+			if (!response.ok) {
+				const errorText = await response.text();
+				throw new Error(`Network response was not ok: ${response.status} - ${errorText}`); // Detailed error message
+			}
+	
+			return await response.json(); // Return the response data (if any)
+		} catch (error) {
+			console.error('Error refreshing database:', error);
+			throw error; // Re-throw for error handling in the component
+		}
+	}
 
 	async updateDevice(_id: string, updatedDevice: Device): Promise<Device> {
 		console.log('update Device API');

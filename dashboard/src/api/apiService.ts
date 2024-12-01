@@ -88,7 +88,7 @@ class ApiService {
 	// async updateDevice(deviceId: string, updatedDevice: Device): Promise<Device> {  // New function
 	// 	try {
 	// 		const deviceId = updatedDevice._id; // Or however you get the device ID
-	// 		const endpoint = `${configService.getApiUrl()}/devices/${deviceId}`; // Correct endpoint
+	// 		const endpoint = `${getApiUrl()}/devices/${deviceId}`; // Correct endpoint
 
 	// 		const response = await fetch(endpoint, {
 	// 			method: 'PUT',

@@ -49,7 +49,6 @@ const pagination = ref({
 	rowPerPageOptions: [10, 20]
 });
 
-
 const columns = computed(() => {
 	if (!devices.value || devices.value.length === 0) {
 		return []; // Or a default set of columns if needed
@@ -123,6 +122,7 @@ const handleRowMouseout = () => {
  */
 const router = useRouter();
 const goToEditDevice = (device: Device) => {
+	deviceStore.setEditingDevice(device);
 	router.push(`/devices/${device._id}`); // Or your edit route
 };
 

@@ -4,15 +4,13 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
-    children: [{ path: '', component: () => import('pages/mapPage.vue') }],
-  },
-  {
-    path: '/devices/:id', // Dynamic route for editing
-    name: 'DeviceEdit',         // Route name
-    component: () => import('../components/deviceEdit.vue') // Your DeviceEdit component
-  },
+    children: [
+      { path: '', component: () => import('pages/mapPage.vue') }, // Map page route
+      { path: 'devices/:id', name: 'DeviceEdit', component: () => import('components/deviceEdit.vue') } // DeviceEdit route *nested* inside MainLayout
+    ],
+  },  
+
   // Always leave this as last one,
-  // but you can also remove it
   {
     path: '/:catchAll(.*)*',
     component: () => import('pages/ErrorNotFound.vue'),

@@ -85,29 +85,30 @@ class ApiService {
 	//     }
 	// }
 
-	// async updateDevice(deviceId: string, updatedDevice: Device): Promise<Device> {  // New function
-	// 	try {
-	// 		const deviceId = updatedDevice._id; // Or however you get the device ID
-	// 		const endpoint = `${getApiUrl()}/devices/${deviceId}`; // Correct endpoint
-
-	// 		const response = await fetch(endpoint, {
-	// 			method: 'PUT',
-	// 			headers: {
-	// 				'Content-Type': 'application/json',
-	// 			},
-	// 			body: JSON.stringify(updatedDevice),
-	// 		});
-
-	// 		if (!response.ok) {
-	// 			console.error('Response was not ok');
-	// 		}
-
-	// 		return response.json();
-	// 	} catch (error) {
-	//         console.error('Error updating device:', error);
-	//         throw error; // Re-throw the error for the component to handle
-	//     }
-	// }
+	async updateDevice(_id: string, updatedDevice: Device): Promise<Device> {
+		console.log('update Device API');
+		try {
+			const response = await fetch(`${config.api.baseUrl}:${config.api.port}${config.api.endpoints.updateDevice}/${_id}`, { // Use correct endpoint and deviceId
+				method: 'PUT', // Or PATCH if appropriate for your API
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(updatedDevice),
+			});
+	
+			if (!response.ok) {
+				const errorText = await response.text(); // Get error text for debugging
+				throw new Error(`Network response was not ok: ${response.status} - ${errorText}`); // More informative error message
+			}
+	
+			const updatedDeviceFromServer = await response.json() as Device; 
+	
+			return updatedDeviceFromServer
+		} catch (error) {
+			console.error('Error updating device:', error);
+			throw error; // Re-throw for error handling in the component
+		}
+	}
 
 
 

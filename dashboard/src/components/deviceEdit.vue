@@ -27,7 +27,8 @@
 						<div class="column">
 							<div v-for="(item, index) in prop.node.value" :key="index"
 								class="row items-center q-gutter-sm">
-								<q-input v-model="prop.node.value[index]" dense outlined @change="updateNodeValue(prop.node, null, prop.node.value)" />
+								<q-input v-model="prop.node.value[index]" dense outlined
+									@change="updateNodeValue(prop.node, null, prop.node.value)" />
 							</div>
 							<q-btn label="Add Item" color="positive" flat dense @click="addArrayItem(prop.node)" />
 						</div>
@@ -43,10 +44,13 @@
 
 					<!-- Handle DateTime type -->
 					<q-input v-else-if="isDateValue(prop.node.value)" :disable="isDisabled(prop.node)"
-						v-model="prop.node.value" outlined dense @change="updateNodeValue(prop.node, null, prop.node.value)" />
+						v-model="prop.node.value" outlined dense
+						@change="updateNodeValue(prop.node, null, prop.node.value)" />
+
 					<!-- Handle String/Number type -->
 					<q-input v-else-if="prop.node.value !== undefined" :disable="isDisabled(prop.node)"
-						v-model="prop.node.value" dense outlined @change="updateNodeValue(prop.node, null, prop.node.value)" />
+						v-model="prop.node.value" dense outlined
+						@change="updateNodeValue(prop.node, null, prop.node.value)" />
 				</div>
 			</template>
 		</q-tree>
@@ -94,26 +98,26 @@ const isDisabled = (node: TreeNode) => {
 };
 
 const saveDevice = async () => {
-  try {
-    isSaving.value = true;
-    console.log('Attempting to save device...');
-    if (editingDevice.value) {
-      console.log('Editing device:', editingDevice.value);
-      await deviceStore.updateDevice(editingDevice.value);
-      console.log('Device saved successfully!');
-      router.push('/');
-    } else {
-      console.error('Editing device is null or undefined.');
-    }
-  } catch (error) {
-    console.error('Failed to save device:', error);
-  } finally {
-    isSaving.value = false;
-  }
+	try {
+		isSaving.value = true;
+		console.log('Attempting to save device...');
+		if (editingDevice.value) {
+			console.log('Editing device:', editingDevice.value);
+			await deviceStore.updateDevice(editingDevice.value);
+			console.log('Device saved successfully!');
+			router.push('/');
+		} else {
+			console.error('Editing device is null or undefined.');
+		}
+	} catch (error) {
+		console.error('Failed to save device:', error);
+	} finally {
+		isSaving.value = false;
+	}
 };
 
 const updateNodeValue = (node: TreeNode, arrayIndex: number | null, newValue: DeviceValue) => {
-	
+
 	console.log('node value is updated');
 	console.log('Node: ', node.value);
 	console.log('array index: ', arrayIndex);

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { Device } from 'src/types/device';
-import { getDevices } from 'src/api/apiService';
+import { apiService, getDevices } from 'src/api/apiService';
 import { ref } from 'vue';
 
 export type PrimitiveValue = string | number | boolean | null | undefined;
@@ -61,7 +61,7 @@ export const useDeviceStore = defineStore('device', () => { // No object, just t
 			}
 
 			// Call API to update
-			// await apiService.updateDevice(updatedDevice._id, updatedDevice);
+			await apiService.updateDevice(updatedDevice._id, updatedDevice);
 			console.log('Device updated successfully');
 			console.log(devices);
 		}

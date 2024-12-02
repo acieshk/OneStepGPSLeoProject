@@ -230,9 +230,6 @@ func fetchAndStoreDevices(c *gin.Context, h *Handlers) {
 	userDeleteResult, err := userCollection.DeleteMany(context.TODO(), bson.D{})
 	if err != nil {
 		fmt.Printf("Error clearing user preferences collection: %v\n", err)
-		// Consider whether to return an error to the client or just log it
-		// c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to clear user preferences"})
-		// return
 	}
 
 	fmt.Printf("Successfully stored %d devices\n", len(response.ResultList))
@@ -471,7 +468,7 @@ func getUserPreferencesHandler(c *gin.Context, h *Handlers) {
 			// Return default preferences if not found
 			prefs = UserPreferences{
 				UserID:          userId,
-				RowPerPage:      20, // Use RowPerPage, not rowPerPage
+				RowPerPage:      20,
 				DeviceListWidth: 200,
 				Unit:            "original",
 			}

@@ -16,7 +16,6 @@ const config = {
 	}
 };
 
-
 class ApiService {
 	private static instance: ApiService;
 	private baseUrl: string;
@@ -44,7 +43,7 @@ class ApiService {
 			const devices = data.result_list;
 
 			console.log(devices);
-			return devices as Device[]; // Type assertion after validation
+			return devices as Device[];
 		} catch (error) {
 			console.error('Error fetching devices:', error);
 			throw error;
@@ -93,6 +92,7 @@ class ApiService {
 			throw error; // Re-throw for error handling in the component
 		}
 	}
+
 	async getUserPreferences(userId: string): Promise<UserPreferences> {
 		try {
 			const response = await fetch(`${config.api.baseUrl}:${config.api.port}${config.api.endpoints.userPreferences}/${userId}`);
@@ -122,29 +122,26 @@ class ApiService {
 					throw new Error(`Failed to fetch preferences: ${response.status} - ${errorText}`);
 				}
 			}
-	
 			return await response.json() as UserPreferences;
 		} catch (error) {
 			console.error('Error getting user preferences:', error);
 			throw error;  // Re-throw for handling in component
 		}
 	}
-	
-	
-	
+
 	async saveUserPreferences(preferences: UserPreferences): Promise<UserPreferences> {
 		try {
-			const response = await fetch(`${config.api.baseUrl}:${config.api.port}${config.api.endpoints.userPreferences}`, {  // Correct endpoint, use POST for create/update
+			const response = await fetch(`${config.api.baseUrl}:${config.api.port}${config.api.endpoints.userPreferences}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(preferences),
 			});
-	
+
 			if (!response.ok) {
 				const errorText = await response.text(); // Get error content for debugging
-				throw new Error(`Failed to save preferences: ${response.status} - ${errorText}`); // Improved error message
+				throw new Error(`Failed to save preferences: ${response.status} - ${errorText}`);
 			}
-	
+
 			return await response.json() as UserPreferences;  // Return updated preferences after successful save, assuming server sends data back
 		} catch (error) {
 			console.error('Error saving user preferences:', error);
@@ -152,9 +149,9 @@ class ApiService {
 		}
 	}
 
-	 async removeDeviceIcon(deviceId: string): Promise<unknown> {
+	async removeDeviceIcon(deviceId: string): Promise<unknown> {
 		const response = await fetch(`${this.baseUrl}/devices/${deviceId}/icon?remove=true`, {
-			method: 'POST',  // or 'DELETE' if you prefer
+			method: 'POST',
 		});
 		if (!response.ok) {
 			throw new Error('Failed to remove icon');
@@ -162,33 +159,25 @@ class ApiService {
 		return await response.json();
 	}
 
-	async uploadDeviceIcon(deviceId: string, iconFile: File): Promise<{iconUrl: string}> {
+	async uploadDeviceIcon(deviceId: string, iconFile: File): Promise<{ iconUrl: string }> {
 		try {
-		  const formData = new FormData();
-		  // Make sure to use the same field name that your server expects
-		  
-		  formData.append('file', iconFile); 
-	  
-		  const response = await fetch(`${this.baseUrl}/devices/${deviceId}/icon`, {
-			method: 'POST',
-			body: formData
-		  });
-	
-	  
-		  if (!response.ok) {
-			const errorData = await response.json();
-			throw new Error(JSON.stringify(errorData));
-		  }
-	  
-		  return {iconUrl:`${this.baseUrl}/icons/${deviceId}.png`};
+			const formData = new FormData();
+			formData.append('file', iconFile);
+			const response = await fetch(`${this.baseUrl}/devices/${deviceId}/icon`, {
+				method: 'POST',
+				body: formData
+			});
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(JSON.stringify(errorData));
+			}
+			return { iconUrl: `${this.baseUrl}/icons/${deviceId}.png` };
 		} catch (error) {
-		  console.error('Error uploading device icon:', error);
-		  throw error;
+			console.error('Error uploading device icon:', error);
+			throw error;
 		}
-	  }
-	
-	
-	
+	}
+
 	// return path of the icon, or null if icon is not found
 	async getIcon(deviceId: string): Promise<string | null> {
 		try {
@@ -201,19 +190,14 @@ class ApiService {
 				const errorText = await response.text();
 				throw new Error(`Error getting icon: ${response.status} - ${errorText}`); // Detailed error
 			}
-	
-	
 			// Assuming the API returns the icon URL directly:
 			return await response.json() as string; // Type assertion since server should return path as string
-			
 		} catch (error) {
 			console.error('Error fetching icon:', error);  // Log the error for debugging
 			throw error; // then rethrow it
 			// Or return a default icon URL if there is one, or return null and have UI use a placeholder icon.
 		}
 	}
-
-
 }
 
 export const apiService = ApiService.getInstance();

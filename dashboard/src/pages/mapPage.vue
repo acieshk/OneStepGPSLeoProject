@@ -29,42 +29,6 @@ const map = shallowRef<Map | null>(null);
 const zoom = ref(6);
 const center = ref([-119.75, 37.25]); // Longitude, Latitude for OpenLayers
 
-
-// onMounted(() => {
-// 	// Initialize the map after the component is mounted
-// 	map.value = new Map({
-// 		target: 'map', // Reference to your map div
-// 		layers: [
-// 			new TileLayer({
-// 				source: new OSM()
-// 			})
-// 		],
-// 		view: new View({
-// 			center: fromLonLat(center.value), // Transform to OpenLayers coordinates
-// 			zoom: zoom.value
-// 		}),
-// 		controls: [], // This hides all default controls.  Remove or customize this for fine-grained control visibility.
-// 	});
-
-// 	// Initial marker creation
-// 	createMarkers();
-
-
-
-// 	// Watch for changes in devices (including visibility, locations, etc.)
-// 	watch(devices, () => {
-// 		// Remove existing markers before recreating so you don't have duplicates and also takes care of visibility since markers are recreated
-// 		if (map.value) {
-// 			map.value.getLayers().forEach(layer => {
-// 				if (layer instanceof VectorLayer) {
-// 					map.value?.removeLayer(layer);
-// 				}
-// 			});
-// 		}
-// 		createMarkers(); // Recreate markers based on updated data
-// 	}, { deep: true });
-// });
-
 const defaultIcon = new Icon({
 	src: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
 	width: 48,
@@ -253,7 +217,7 @@ onMounted(() => {
 	map.value.addOverlay(popup); // Ensure popup is added to the map
 
 
-	createMarkers(); // Call createMarkers after map initialization
+	createMarkers(); 
 
 	// Watch selectedDeviceId
 	watch(selectedDeviceId, (newDeviceId) => {

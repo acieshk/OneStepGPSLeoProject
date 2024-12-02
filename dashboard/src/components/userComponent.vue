@@ -45,7 +45,6 @@ const saveUserPreferences = async () => {
     });
     router.push('/');
   } catch (error) {
-    // Error handling
 	console.error(error);
   }
 };
@@ -66,40 +65,27 @@ onMounted(async () => {
 <style scoped>
 .user-form {
 	max-width: 400px;
-	/* Limit form width for better layout */
 	margin: 20px auto;
-	/* Center the form */
 	padding: 20px;
-	/* Add padding */
 	border: 1px solid #ddd;
-	/* Add a subtle border (optional) */
 	border-radius: 5px;
-	/* Round the corners (optional) */
 }
 
 .user-form .q-field {
-	/* Target Quasar form fields within .user-form */
 	margin-bottom: 16px;
-	/* Add spacing between form fields */
 }
 
 .user-form .q-btn {
-	/* Style the save button */
 	width: 100%;
-	/* Make it full width */
 }
 
 .user-form .q-radio {
 	margin-bottom: 8px;
-	/* Space out radio buttons */
 }
 
 @media (max-width: 500px) {
-
-	/* Adjust breakpoint as needed */
 	.user-form {
 		max-width: 90%;
-		/* Take up more space on smaller screens */
 	}
 }
 </style>

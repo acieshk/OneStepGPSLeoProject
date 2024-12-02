@@ -26,7 +26,7 @@
 				<q-img :src="formatURL(props.row.iconUrl)" style="max-width: 50px; max-height:50px" />
 			</q-td>
 		</template>
-		<template v-slot:body-cell-device="props"> <!-- Named slot for the "device" column -->
+		<template v-slot:body-cell-device="props"> 
 			<q-td :props="props">
 				<div class="name-status">
 					<span :class="['status-indicator', props.row.online ? 'online' : 'offline']"></span>
@@ -58,7 +58,7 @@ const { userPreferences } = storeToRefs(userStore);
 const selectedRow = ref<Device | null>(null);
 const pagination = ref({
 	page: 1,
-	rowsPerPage: userPreferences.value.rowPerPage, // Default rows per page
+	rowsPerPage: userPreferences.value.rowPerPage, 
 	rowPerPageOptions: [10, 25, 50, 100, 0]
 });
 
@@ -89,13 +89,13 @@ const columns = computed(() => {
 		{
 			name: 'iconUrl',
 			label: 'icon',
-			field: (row: Device) => formatURL(row.iconUrl), // Access correct property: iconURL
+			field: (row: Device) => formatURL(row.iconUrl), 
 			align: 'center' as 'left' | 'right' | 'center',
 			sortable: false // No sorting needed for this icons
 		},
 		{
-			name: 'device', // Unique name for the column
-			label: 'Device', // Display label
+			name: 'device', 
+			label: 'Device', 
 			field: 'device',  // Pass the whole row so both name and id can be used for formatting
 			align: 'left' as 'left' | 'right' | 'center',
 			sortable: true // Sorting will be based on the formatted value
@@ -108,8 +108,8 @@ const columns = computed(() => {
 			sortable: true,
 		},
 		{
-			name: 'odometer', // Unique name for the column
-			label: 'odometer', // Display label
+			name: 'odometer', 
+			label: 'odometer', 
 			field: (row: Device) => row.latest_device_point?.device_state.odometer,
 			format: (val: {
 				value: number,
@@ -184,7 +184,7 @@ const formatOdometer = (odometerData: { value: number, unit: string }) => {
 	let { value, unit } = odometerData;
 	if (typeof value !== 'number') {
 		value = parseFloat(value) // Convert to number if needed. If invalid number, handle as needed
-		if (isNaN(value)) // Handle invalid value
+		if (isNaN(value)) 
 			return 'N/A'
 	}
 
@@ -221,8 +221,6 @@ const convertToMiles = (value: number, unit: string) => { // Keep other conversi
 	}
 	return value; // Return original value if unit is not km or m
 };
-
-
 
 const convertToKilometers = (value: number) => { // Keep other conversion functions if needed
 	return value * 1.60934;
@@ -291,7 +289,7 @@ watch(selectedDeviceId, (newSelectedDeviceId) => {
 */
 
 const DEFAULT_ICON_URL = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png';
-const formatURL = (url: string | null | undefined) => { // Correct type for url
+const formatURL = (url: string | null | undefined) => { 
 	if (!url) return DEFAULT_ICON_URL; // Return default if null, undefined, or empty
 
 	if (typeof url !== 'string') {

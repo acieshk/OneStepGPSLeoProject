@@ -63,6 +63,6 @@ export interface Device {
 
 export interface UserPreferences {
     rowPerPage: number;
-    DeviceListWidth: number; // Store width as a number
+    DeviceListWidth: number; 
     unit: 'original' | 'metric' | 'imperial';
 }

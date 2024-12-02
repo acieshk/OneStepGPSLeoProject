@@ -186,14 +186,14 @@ const DEFAULT_ICON_URL = getMarkerUrl('Blue'); // Initialize defaultIconURL
 const currentIconUrl = computed(() => {
     if (!editingDevice.value) return DEFAULT_ICON_URL;
     
-    const iconUrl = editingDevice.value.iconUrl; // Use consistent casing
+    const iconUrl = editingDevice.value.iconUrl; 
     return iconUrl && typeof iconUrl === 'string' && iconUrl.trim() !== '' 
         ? iconUrl 
         : DEFAULT_ICON_URL;
 });	
 
 const hasCustomIcon = computed(() => {
-	return editingDevice.value?.iconURL && editingDevice.value.iconURL !== ''; // Use iconURL, not iconUrl
+	return editingDevice.value?.iconURL && editingDevice.value.iconURL !== ''; 
 });
 
 const updateDefaultIcon = (colorOption: { label: string; value: string }) => {
@@ -212,7 +212,7 @@ const handleImageError = () => {
 const handleIconUpload = async (file: File | null) => {
 	if (!file || !editingDevice.value) return;
 	
-    if (editingDevice.value?._id) { // Fix: call updateIcon with file to upload
+    if (editingDevice.value?._id) { 
         deviceStore.updateIcon(editingDevice.value._id, file, null); // Call updateIcon with the File object
     }
 };
@@ -222,12 +222,12 @@ const removeIcon = () => {
 	try {
 		deviceStore.updateIcon(editingDevice.value._id, null, ''); // Passing empty string updates with default
 	} catch (error) {
-		console.error('Failed to remove icon:', error); // Handle or display error as needed
+		console.error('Failed to remove icon:', error); 
 	}
 };
 /* End icon logic */
-
-const disabledFields = ['_id', 'bcc_id', 'visible', 'iconUrl', 'markerId']; // Fields to disable
+// Fields to disable
+const disabledFields = ['_id', 'bcc_id', 'visible', 'iconUrl', 'markerId']; 
 
 const isDisabled = (node: TreeNode) => {
 	return disabledFields.includes(node.label); // Check if node label is in disabledFields
@@ -341,7 +341,6 @@ const addArrayItem = (node: TreeNode) => {
   }, editingDevice.value as Record<string, unknown>);
 
   if (Array.isArray(currentArray)) {
-    // Add a null or default value to the array
     currentArray.push(null);
     
     // Update the device property to trigger reactivity

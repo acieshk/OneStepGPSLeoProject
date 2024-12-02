@@ -75,7 +75,7 @@ go run server.go
 
 #### Navigate to the frontend directory:
 ```bash
-cd device-dashboard/frontend
+cd \onestepGPSLeo\dashboard
 ```
 
 #### Install dependencies:

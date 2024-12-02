@@ -56,7 +56,7 @@ export interface Device {
 	updated_at: string;
 	vin: string | null;
 	year: number | null;
-
+	markerId?: number;
 	// Additional properties for the custom object
 	[key: string]: string | number | boolean | Date | object | undefined | null;
 }

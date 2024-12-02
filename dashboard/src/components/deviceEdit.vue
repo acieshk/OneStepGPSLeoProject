@@ -229,7 +229,7 @@ const removeIcon = () => {
 };
 /* End icon logic */
 
-const disabledFields = ['_id', 'bcc_id', 'visible', 'iconUrl']; // Fields to disable
+const disabledFields = ['_id', 'bcc_id', 'visible', 'iconUrl', 'markerId']; // Fields to disable
 
 const isDisabled = (node: TreeNode) => {
 	return disabledFields.includes(node.label); // Check if node label is in disabledFields

@@ -11,8 +11,6 @@
 				</div>
 			</q-toolbar>
 		</div>
-		{{ currentIconUrl }}
-		{{ hasCustomIcon }}
 		<!-- the icon uploader section -->
 		<div class="icon-uploader q-mb-md">
 			<div class="row items-center q-gutter-md">

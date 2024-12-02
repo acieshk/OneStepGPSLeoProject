@@ -12,7 +12,6 @@
 					Device Dashboard
 				</q-toolbar-title>
 
-				<div>Right side</div>
 				<div class="right-controls">
 					<q-btn flat label="Refresh Database" @click="refreshDatabase" />
 					<q-btn round dense icon="person" @click="goToUserPage" />

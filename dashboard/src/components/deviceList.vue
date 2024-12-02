@@ -1,21 +1,14 @@
 <template>
-	<q-table title="Devices" 
-	:rows="devices" :columns="columns" v-model:pagination.sync="pagination"
-		:rows-per-page-options="[10, 25, 50, 100, 0]" row-key="_id" 
-		@row-click="handleRowClick"
+	<q-table title="Devices" :rows="devices" :columns="columns" v-model:pagination.sync="pagination"
+		:rows-per-page-options="[10, 25, 50, 100, 0]" row-key="_id" @row-click="handleRowClick"
 		@mouseover="handleRowMouseover" @mouseout="handleRowMouseout">
 		<template v-slot:header-cell-visible="props">
-		<q-th :props="props">
-			<q-btn 
-			flat 
-			dense 
-			icon="visibility" 
-			:class="{ 'visibility-on': allVisible }"
-			@click="toggleAllVisibility"
-			>
-			{{ `Visible (${visibleDevices}/${totalDevices})` }}
-			</q-btn>
-		</q-th>
+			<q-th :props="props">
+				<q-btn flat dense icon="visibility" :class="{ 'visibility-on': allVisible }"
+					@click="toggleAllVisibility">
+					{{ `Visible (${visibleDevices}/${totalDevices})` }}
+				</q-btn>
+			</q-th>
 		</template>
 		<template v-slot:body-cell-actions="props">
 			<q-td :props="props" class="action-cell">
@@ -24,7 +17,7 @@
 		</template>
 		<template v-slot:body-cell-visible="props">
 			<q-td :props="props" class="visibility-cell">
-				<q-icon :name="props.row.visible ? 'visibility' : 'visibility_off'"
+				<q-btn flat round dense :icon="props.row.visible ? 'visibility' : 'visibility_off'"
 					@click.stop="handleVisibilityToggle(props.row)" />
 			</q-td>
 		</template>
@@ -53,7 +46,7 @@ import { useDeviceStore } from 'src/stores/deviceStore';
 import { useUserStore } from 'src/stores/userStore';
 import { storeToRefs } from 'pinia';
 import { Device } from 'src/model/model';
-import { QIcon, QTd } from 'quasar';
+import { QTd } from 'quasar';
 import { useRouter } from 'vue-router';
 
 
@@ -108,6 +101,13 @@ const columns = computed(() => {
 			sortable: true // Sorting will be based on the formatted value
 		},
 		{
+			name: 'fuel',
+			label: 'Fuel (%)',
+			field: (row: Device) => row.latest_device_point?.device_state.fuel_percent?.toFixed(2),
+			align: 'right' as 'left' | 'right' | 'center',
+			sortable: true,
+		},
+		{
 			name: 'odometer', // Unique name for the column
 			label: 'odometer', // Display label
 			field: (row: Device) => row.latest_device_point?.device_state.odometer,
@@ -149,10 +149,10 @@ const visibleDevices = computed(() => devices.value.filter(device => device.visi
 const totalDevices = computed(() => devices.value.length);
 
 const toggleAllVisibility = () => {
-  const newValue = !allVisible.value;
-  devices.value.forEach(device => {
-    deviceStore.setMapIconVisibility(device._id, newValue);
-  });
+	const newValue = !allVisible.value;
+	devices.value.forEach(device => {
+		deviceStore.setMapIconVisibility(device._id, newValue);
+	});
 };
 /*
 	Row Functionality
@@ -359,7 +359,8 @@ visibility-cell {
 .status-indicator.offline {
 	background-color: #f44336;
 }
+
 .visibility-on {
-  color: green; 
+	color: green;
 }
 </style>

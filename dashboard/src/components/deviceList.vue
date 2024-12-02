@@ -14,6 +14,11 @@
 					@click.stop="handleVisibilityToggle(props.row)" />
 			</q-td>
 		</template>
+		<template v-slot:body-cell-iconUrl="props">
+			<q-td :props="props">
+				<q-img :src="formatURL(props.row.iconUrl)" style="max-width: 50px; max-height:50px" />
+			</q-td>
+		</template>
 		<template v-slot:body-cell-device="props"> <!-- Named slot for the "device" column -->
 			<q-td :props="props">
 				<div class="name-status">
@@ -36,6 +41,7 @@ import { storeToRefs } from 'pinia';
 import { Device } from 'src/model/model';
 import { QIcon, QTd } from 'quasar';
 import { useRouter } from 'vue-router';
+
 
 
 const deviceStore = useDeviceStore();
@@ -71,6 +77,13 @@ const columns = computed(() => {
 			align: 'center' as 'left' | 'right' | 'center',
 		},
 		{
+			name: 'iconUrl',
+			label: 'icon',
+			field: (row: Device) => formatURL(row.iconUrl), // Access correct property: iconURL
+			align: 'center' as 'left' | 'right' | 'center',
+			sortable: false // No sorting needed for this icons
+		},
+		{
 			name: 'device', // Unique name for the column
 			label: 'Device', // Display label
 			field: 'device',  // Pass the whole row so both name and id can be used for formatting
@@ -78,12 +91,31 @@ const columns = computed(() => {
 			sortable: true // Sorting will be based on the formatted value
 		},
 		{
+			name: 'odometer', // Unique name for the column
+			label: 'odometer', // Display label
+			field: (row: Device) => row.latest_device_point?.device_state.odometer,
+			format: (val: {
+				value: number,
+				unit: string
+			}) => {
+				return formatOdometer(val); // Format value as a string with 2 decimal places and the unit appended
+			},
+			align: 'right' as 'left' | 'right' | 'center',
+			sortable: true,
+			sort: (a: { value: number; unit: string } | undefined, b: { value: number; unit: string } | undefined) => {
+				// Convert to metric before sorting
+				const valueA = convertToMetric(a?.value ?? null, a?.unit ?? null) ?? 0; // Default to 0 if null/undefined after conversion
+				const valueB = convertToMetric(b?.value ?? null, b?.unit ?? null) ?? 0;
+				return valueA - valueB;
+			},
+		},
+		{
 			name: 'location',
 			label: 'Location',
 			field: (row: Device) => row.latest_device_point, // Access latest_device_point
 			format: (val: {
 				lat: string,
-                lng: string,
+				lng: string,
 			}) => {
 				const lat = Number(val.lat) || 0; // Convert to number
 				const lng = Number(val.lng) || 0; // Convert to number
@@ -117,6 +149,83 @@ const handleRowMouseover = (evt: Event, row: Device | undefined) => { // Indicat
 const handleRowMouseout = () => {
 	deviceStore.setHoveredDevice(null);
 }
+
+const formatOdometer = (odometerData: { value: number, unit: string }) => {
+	if (!odometerData) return 'N/A'; // Handle missing data
+
+	let { value, unit } = odometerData;
+	if (typeof value !== 'number') {
+		value = parseFloat(value) // Convert to number if needed. If invalid number, handle as needed
+		if (isNaN(value)) // Handle invalid value
+			return 'N/A'
+	}
+
+	switch (userPreferences.value.unit) { // Access user preference reactively
+		case 'imperial':
+			if (unit === 'km' || unit === 'm') {
+				value = convertToMiles(value, unit); // Convert to miles
+				unit = 'mi';
+			}
+			break; // No conversion needed if already miles
+		case 'metric':
+			if (unit === 'mi') {
+				value = convertToKilometers(value);
+				unit = 'km';
+			} else if (unit === 'm') {
+				value = value / 1000; // Convert meters to kilometers
+				unit = 'km';
+			}
+			break; // No conversion needed if already kilometers
+		// case 'original': // No conversion needed
+		//     break;  This is the default so no changes need to be made
+		default: // Handle invalid or unknown units from user preferences
+			console.warn(`Unknown unit preference: ${userPreferences.value.unit}`);
+	}
+
+	return `${value.toFixed(2)} ${unit}`; // Format with 2 decimal places
+};
+
+const convertToMiles = (value: number, unit: string) => { // Keep other conversion functions if needed
+	if (unit === 'km') {
+		return value * 0.621371;
+	} else if (unit === 'm') {
+		return value * 0.000621371;
+	}
+	return value; // Return original value if unit is not km or m
+};
+
+
+
+const convertToKilometers = (value: number) => { // Keep other conversion functions if needed
+	return value * 1.60934;
+};
+
+const convertToMetric = (value: number | null | undefined, unit: string | null | undefined): number | null => {
+	if (value == null || unit == null) return null; // Handle missing data
+
+	if (typeof value !== 'number') {
+		value = parseFloat(value as string);
+		if (isNaN(value)) {
+			return null; // Return null or handle invalid values
+		}
+	}
+
+	if (typeof unit !== 'string') { // If unit is invalid, return null, or handle as needed
+		return null;
+	}
+
+	switch (unit) {
+		case 'mi':
+			return convertToKilometers(value);
+		case 'm':
+			return value / 1000; // Convert meters to kilometers
+		case 'km':
+			return value; // Already in kilometers
+		default:
+			console.warn(`Unknown unit: ${unit}`);
+			return null; // Or handle the unknown unit differently
+	}
+};
 /* 
 	  Edit Button functionality
  */
@@ -149,7 +258,25 @@ watch(selectedDeviceId, (newSelectedDeviceId) => {
 		selectedRow.value = null;
 	}
 });
+/*
+	icon
+*/
 
+const DEFAULT_ICON_URL = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png';
+const formatURL = (url: string | null | undefined) => { // Correct type for url
+	console.log(url);
+	if (!url) return DEFAULT_ICON_URL; // Return default if null, undefined, or empty
+
+	if (typeof url !== 'string') {
+		console.warn(`formatURL received a non-string value: ${typeof url}, ${url}`); // Log for debugging
+		return DEFAULT_ICON_URL;
+	}
+
+	if (url.startsWith('http://') || url.startsWith('https://')) {
+		return url;
+	}
+	return `http://${url}`; // Prepend http:// if no protocol
+};
 </script>
 <style scoped>
 .q-table__tr--selected {

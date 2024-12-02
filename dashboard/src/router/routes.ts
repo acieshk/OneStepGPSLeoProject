@@ -6,7 +6,8 @@ const routes: RouteRecordRaw[] = [
     component: () => import('layouts/MainLayout.vue'),
     children: [
       { path: '', component: () => import('pages/mapPage.vue') }, // Map page route
-      { path: 'devices/:id', name: 'DeviceEdit', component: () => import('components/deviceEdit.vue') } // DeviceEdit route *nested* inside MainLayout
+      { path: 'devices/:id', name: 'DeviceEdit', component: () => import('components/deviceEdit.vue') }, // DeviceEdit route *nested* inside MainLayout
+	  { path: 'user', name: 'User', component: () => import('components/userComponent.vue') } // DeviceEdit route *nested* inside MainLayout
     ],
   },  
 

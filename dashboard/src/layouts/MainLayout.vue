@@ -8,14 +8,14 @@
 			<q-toolbar>
 				<q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
 
-				<q-toolbar-title>
+				<q-toolbar-title class="page-title" @click="backToMain">
 					Device Dashboard
 				</q-toolbar-title>
 
 				<div>Right side</div>
 				<div class="right-controls">
 					<q-btn flat label="Refresh Database" @click="refreshDatabase" />
-					<q-btn round dense icon="person" />
+					<q-btn round dense icon="person" @click="goToUserPage" />
 				</div>
 			</q-toolbar>
 		</q-header>
@@ -59,15 +59,30 @@ import { storeToRefs } from 'pinia';
 import { useQuasar } from 'quasar';
 import { apiService } from 'src/api/apiService';
 import { useDeviceStore } from 'src/stores/deviceStore';
+import { useUserStore } from 'src/stores/userStore';
 import { onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 
+defineOptions({
+	name: 'MainLayout'
+});
+
+/*
+	Buttons control logic
+*/
 const $q = useQuasar();  // Keep only one instance of useQuasar
 const deviceStore = useDeviceStore();
+const userStore = useUserStore();
+const { userPreferences } = storeToRefs(userStore);
 const isLoading = ref(false);
 const showRefreshDialog = ref(false);
-
+const router = useRouter();
 const refreshDatabase = async () => {
 	showRefreshDialog.value = true;
+};
+
+const backToMain = () => {
+	router.push('/');
 };
 
 const onConfirmRefreshDatabase = async () => {
@@ -93,10 +108,13 @@ const onConfirmRefreshDatabase = async () => {
 	}
 }
 
-defineOptions({
-	name: 'MainLayout'
-});
+const goToUserPage = () => {
+  router.push('/user'); // Navigate to the user page
+};
 
+/*
+	Drawer logic 
+*/
 const { mapReady } = storeToRefs(deviceStore);
 const leftDrawerOpen = ref(false);
 const drawerWidth = ref(300);
@@ -105,6 +123,10 @@ const minDrawerWidth = 200;
 
 function toggleLeftDrawer() {
 	leftDrawerOpen.value = !leftDrawerOpen.value;
+	    // Set drawer width from user preferences when opening
+		if (leftDrawerOpen.value) {
+        drawerWidth.value = userPreferences.value.DeviceListWidth; // Use .value to access ref
+    }
 }
 
 function startResizing(event: MouseEvent) {
@@ -120,6 +142,7 @@ function startResizing(event: MouseEvent) {
 
 	const onMouseUp = () => {
 		isResizing = false;
+		userStore.setDeviceListWidth(drawerWidth.value);
 		document.removeEventListener('mousemove', onMouseMove);
 		document.removeEventListener('mouseup', onMouseUp);
 	};
@@ -131,14 +154,20 @@ function startResizing(event: MouseEvent) {
 //When the map is ready, show the left drawer
 watch(mapReady, (mapIsReady) => {
 	if (mapIsReady) {
-		leftDrawerOpen.value = true;
+		toggleLeftDrawer()
 	}
 });
+
 onMounted(() => {
 	deviceStore.loadDevices();
+	userStore.loadUser();
+	console.log('onmounted');
 });
 </script>
 <style scoped>
+.page-title {
+	cursor: pointer;
+}
 .page-container {
 	height: 100vh;
 }

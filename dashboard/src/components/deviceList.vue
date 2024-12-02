@@ -33,7 +33,7 @@ import { computed, ref, watch } from 'vue';
 import { useDeviceStore } from 'src/stores/deviceStore';
 import { useUserStore } from 'src/stores/userStore';
 import { storeToRefs } from 'pinia';
-import { Device } from 'src/types/device';
+import { Device } from 'src/model/model';
 import { QIcon, QTd } from 'quasar';
 import { useRouter } from 'vue-router';
 
@@ -41,12 +41,12 @@ import { useRouter } from 'vue-router';
 const deviceStore = useDeviceStore();
 const { deviceLoaded, devices, selectedDeviceId } = storeToRefs(deviceStore);
 const userStore = useUserStore();
-const { rowPerPage } = storeToRefs(userStore);
+const { userPreferences } = storeToRefs(userStore);
 const selectedRow = ref<Device | null>(null);
 const pagination = ref({
 	page: 1,
-	rowsPerPage: rowPerPage, // Default rows per page
-	rowPerPageOptions: [10, 20]
+	rowsPerPage: userPreferences.value.rowPerPage, // Default rows per page
+	rowPerPageOptions: [10, 25, 50, 100, 0]
 });
 
 const columns = computed(() => {

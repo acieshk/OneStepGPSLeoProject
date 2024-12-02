@@ -60,3 +60,9 @@ export interface Device {
 	// Additional properties for the custom object
 	[key: string]: string | number | boolean | Date | object | undefined | null;
 }
+
+export interface UserPreferences {
+    rowPerPage: number;
+    DeviceListWidth: number; // Store width as a number
+    unit: 'original' | 'metric' | 'imperial';
+}

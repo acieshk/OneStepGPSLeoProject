@@ -11,6 +11,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"time"
 
 	_ "image/gif"  // Decode GIF
 	_ "image/jpeg" // Decode JPEG
@@ -26,10 +27,10 @@ import (
 )
 
 type UserPreferences struct {
-	UserID       string `bson:"user_id" json:"userId"`             // Changed to userId to match request
-	DistanceUnit string `bson:"distance_unit" json:"distanceUnit"` // Match casing from frontend
-	Layout       string `bson:"layout" json:"layout"`              // Match casing from frontend
-
+	UserID          string `bson:"user_id" json:"userId"`
+	RowPerPage      int    `bson:"row_per_page" json:"rowPerPage"`
+	DeviceListWidth int    `bson:"device_list_width" json:"DeviceListWidth"`
+	Unit            string `bson:"unit" json:"unit"`
 }
 
 // Config represents the configuration structure for the application
@@ -193,10 +194,21 @@ func fetchAndStoreDevices(c *gin.Context, h *Handlers) {
 			continue                                              // Continue to the next device
 		}
 	}
+	// Clear the UserPreferencesCollection after storing devices:
+	userCollection := client.Database(h.Config.DatabaseName).Collection(h.Config.UserCollectionName)
+	userDeleteResult, err := userCollection.DeleteMany(context.TODO(), bson.D{})
+	if err != nil {
+		fmt.Printf("Error clearing user preferences collection: %v\n", err)
+		// Consider whether to return an error to the client or just log it
+		// c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to clear user preferences"})
+		// return
+	}
 
 	fmt.Printf("Successfully stored %d devices\n", len(response.ResultList))
+	fmt.Printf("Deleted %v user preferences documents\n", userDeleteResult.DeletedCount)
+
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Devices stored successfully",
+		"message": "Devices and User Preferences cleared and updated successfully", // Updated message
 		"count":   len(response.ResultList),
 	})
 }
@@ -400,9 +412,10 @@ func getUserPreferencesHandler(c *gin.Context, h *Handlers) {
 		if err == mongo.ErrNoDocuments {
 			// Return default preferences if not found
 			prefs = UserPreferences{
-				UserID:       userId, // Or generate a new ID if needed
-				DistanceUnit: "km",
-				Layout:       "horizontal",
+				UserID:          userId,
+				RowPerPage:      20, // Use RowPerPage, not rowPerPage
+				DeviceListWidth: 200,
+				Unit:            "original",
 			}
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve preferences"})
@@ -420,26 +433,43 @@ func saveUserPreferencesHandler(c *gin.Context, h *Handlers) {
 		return
 	}
 
-	// Use upsert to create or update preferences
-	opts := options.Update().SetUpsert(true)
-	filter := bson.M{"user_id": prefs.UserID} // Use the correct field name in the filter!
-	update := bson.M{"$set": prefs}           // Use $set to update fields
+	// Print received preferences for debugging
+	fmt.Printf("Received User Preferences: %#v\n", prefs)
 
-	// Use the correct collection from your Handlers (h) and a context
-	result, err := h.UserPreferencesCollection.UpdateOne(context.TODO(), filter, update, opts) // Corrected context usage
+	opts := options.Update().SetUpsert(true)
+	filter := bson.M{"user_id": prefs.UserID}
+	update := bson.M{"$set": prefs}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Add context with timeout
+	defer cancel()
+
+	result, err := h.UserPreferencesCollection.UpdateOne(ctx, filter, update, opts) // Use context
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to save preferences %v", err)}) // Return error to frontend
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to save preferences %v", err)})
 		return
 	}
 
-	// Log details for debugging
-	if result.UpsertedCount > 0 {
-		fmt.Println("Inserted a single document: ", result.UpsertedID)
-	} else {
-		fmt.Println("Matched", result.MatchedCount, "documents and updated", result.ModifiedCount, "documents.")
+	if result.ModifiedCount == 0 && result.UpsertedCount == 0 { // Check both ModifiedCount and UpsertedCount
+		fmt.Println("No documents were updated or upserted")
+		// Check if a document exists, if so return error message
+		var existingPrefs UserPreferences
+		if err := h.UserPreferencesCollection.FindOne(ctx, filter).Decode(&existingPrefs); err == nil {
+			fmt.Printf("Existing Preferences in DB: %#v\n", existingPrefs)
+			c.JSON(http.StatusOK, gin.H{"message": "User preferences matched but not updated (no changes detected).", "prefs": existingPrefs}) // Return the existing preferences
+		} else if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User preferences not found"}) // If not found then return 404 not found
+		} else {
+			// Return an error message to the client
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve existing preferences for comparison"})
+		}
+		return
 	}
 
-	c.JSON(http.StatusOK, prefs) // Respond with the updated preferences
+	if result.UpsertedCount > 0 {
+		c.JSON(http.StatusCreated, prefs) // 201 Created on insert
+	} else {
+		c.JSON(http.StatusOK, prefs) // 200 OK on update
+	}
 }
 
 // If icon exists, return the path

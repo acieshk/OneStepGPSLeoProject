@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia';
-import { Device } from 'src/types/device';
+import { Device } from 'src/model/model';
 import { apiService } from 'src/api/apiService';
 import { ref } from 'vue';
 
 export type PrimitiveValue = string | number | boolean | null | undefined;
 export type DeviceValue = PrimitiveValue | Record<string, unknown> | unknown[];
 
-export const useDeviceStore = defineStore('device', () => { // No object, just the store ID
+export const useDeviceStore = defineStore('device', () => { 
 	const deviceLoaded = ref(false);
 	const deviceLoading = ref(false);
 	const devices = ref([] as Device[]);

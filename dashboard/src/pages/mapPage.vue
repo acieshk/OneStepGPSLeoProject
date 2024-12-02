@@ -15,7 +15,7 @@ import L, { Icon } from 'leaflet';
 import type { LatLngTuple, PointTuple } from 'leaflet';
 import { useDeviceStore } from 'src/stores/deviceStore';
 import { storeToRefs } from 'pinia';
-import { Device } from 'src/types/device';
+import { Device } from 'src/model/model';
 
 
 const deviceStore = useDeviceStore();

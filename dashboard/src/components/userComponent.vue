@@ -4,7 +4,7 @@
 			<q-toolbar-title>User Preferences</q-toolbar-title>
 		</q-toolbar>
 		<div class="q-gutter-md">
-			<q-select class="display:none" v-model="userPreferences.rowPerPage" :options="[20, 50, 100]" label="Rows per page" emit-value
+			<q-select style="display:none" v-model="userPreferences.rowPerPage" :options="[20, 50, 100]" label="Rows per page" emit-value
 				map-options />
 
 			<q-input v-model="userPreferences.DeviceListWidth" label="Device List Width (px)" disable type="number" />

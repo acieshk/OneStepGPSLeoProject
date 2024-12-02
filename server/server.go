@@ -82,7 +82,7 @@ func loadConfig(filename string) (Config, error) {
 }
 
 // initMongoDB initializes the MongoDB client and establishes a connection
-func initMongoDB(config Config) (*mongo.Client, error) {
+func initMongoDB(config Config) (*mongo.Client, bool, error) {
 	// Use config.DatabaseName here to get the database
 	mongoURI := fmt.Sprintf("mongodb://%s:%s", config.MongoDBURL, config.MongoDBPort)
 	if config.MongoDBUsername != "" && config.MongoDBPassword != "" {
@@ -98,12 +98,12 @@ func initMongoDB(config Config) (*mongo.Client, error) {
 	clientOptions := options.Client().ApplyURI(mongoURI)
 	client, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to MongoDB: %v", err) // Return the error immediately
+		return nil, false, fmt.Errorf("failed to connect to MongoDB: %v", err) // Return the error immediately
 	}
 
 	// Check if there was an error during connection
 	if err := client.Ping(context.TODO(), nil); err != nil {
-		return nil, fmt.Errorf("MongoDB ping failed: %v", err)
+		return nil, false, fmt.Errorf("MongoDB ping failed: %v", err)
 	}
 
 	// Create database if it doesn't exist.
@@ -112,7 +112,7 @@ func initMongoDB(config Config) (*mongo.Client, error) {
 	// Get a list of database names
 	dbNames, err := client.ListDatabaseNames(context.TODO(), bson.M{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to list database names: %w", err) // Wrap the error
+		return nil, false, fmt.Errorf("failed to list database names: %w", err) // Wrap the error
 	}
 
 	dbExists := false
@@ -121,8 +121,8 @@ func initMongoDB(config Config) (*mongo.Client, error) {
 			dbExists = true
 			break
 		}
-
 	}
+	isNewDatabase := !dbExists
 
 	if !dbExists {
 		fmt.Printf("Created database: %s\n", config.DatabaseName)
@@ -132,17 +132,48 @@ func initMongoDB(config Config) (*mongo.Client, error) {
 	// Check if the collections exist; if not, create them.
 	err = createCollectionIfNotExists(db, config.DeviceCollectionName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create devices collection: %v", err)
+		return nil, false, fmt.Errorf("failed to create devices collection: %v", err)
 	}
 
 	err = createCollectionIfNotExists(db, config.UserCollectionName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create user preferences collection: %v", err)
+		return nil, false, fmt.Errorf("failed to create user preferences collection: %v", err)
 	}
 
-	return client, nil
+	return client, isNewDatabase, nil
 }
+func populateInitialData(h *Handlers) error {
+	apiURL := fmt.Sprintf("%s%s", h.Config.APIURL, h.Config.APIKey)
 
+	resp, err := http.Get(apiURL)
+	if err != nil {
+		return fmt.Errorf("failed to fetch data from API: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read API response: %v", err)
+	}
+
+	var response struct {
+		ResultList []map[string]interface{} `json:"result_list"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse API response: %v", err)
+	}
+
+	collection := h.DBClient.Database(h.Config.DatabaseName).Collection(h.Config.DeviceCollectionName)
+
+	for _, device := range response.ResultList {
+		_, err := collection.InsertOne(context.TODO(), device)
+		if err != nil {
+			return fmt.Errorf("failed to insert device: %v", err)
+		}
+	}
+
+	return nil
+}
 func fetchAndStoreDevices(c *gin.Context, h *Handlers) {
 	fmt.Println("Starting fetchAndStoreDevices...")
 	apiURL := fmt.Sprintf("%s%s", h.Config.APIURL, h.Config.APIKey)
@@ -522,8 +553,9 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Initialize MongoDB client *before* creating collections or handlers
-	client, err = initMongoDB(config)
+	// Initialize MongoDB client before creating collections or handlers
+	var isNewDatabase bool
+	client, isNewDatabase, err = initMongoDB(config)
 	if err != nil {
 		log.Fatalf("Failed to initialize MongoDB: %v", err)
 	}
@@ -532,13 +564,22 @@ func main() {
 	devicesCollection := client.Database(config.DatabaseName).Collection(config.DeviceCollectionName)
 	userPreferencesCollection := client.Database(config.DatabaseName).Collection(config.UserCollectionName)
 
-	// Initialize handlers (after MongoDB and collections are initialized!)
+	// Initialize handlers (after MongoDB and collections are initialized)
 
 	handlers = &Handlers{
 		Config:                    config,
 		DevicesCollection:         devicesCollection,
 		UserPreferencesCollection: userPreferencesCollection,
 		DBClient:                  client,
+	}
+
+	// If this is a new database, populate it with initial data
+	if isNewDatabase {
+		if err := populateInitialData(handlers); err != nil {
+			log.Printf("Warning: Failed to populate initial data: %v", err)
+		} else {
+			log.Println("Successfully populated initial data")
+		}
 	}
 
 	// Set up the Gin router

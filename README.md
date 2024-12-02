@@ -62,6 +62,7 @@ Edit the config.json file in the server directory and configure the following se
 ```
 
 **Note**:  
+- You have to enter api_key as it is removed for security purpose.
 - Replace the placeholder values with your actual settings.  
 - If you're running MongoDB locally without authentication, you can omit the `mongodb_username` and `mongodb_password` fields.
 

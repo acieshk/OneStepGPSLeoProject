@@ -34,7 +34,7 @@ git clone https://github.com/acieshk/OneStepGPSLeoProject.git
 
 #### Navigate to the server directory:
 ```bash
-cd onestepGPSLeo\server
+cd OneStepGPSLeoProject\server
 ```
 
 #### Install dependencies:
@@ -76,7 +76,7 @@ go run server.go
 
 #### Open a new command line. Navigate to the frontend directory:
 ```bash
-cd \onestepGPSLeo\dashboard
+cd \OneStepGPSLeoProject\dashboard
 ```
 
 #### Install dependencies:

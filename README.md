@@ -27,7 +27,7 @@ This project provides a dashboard to visualize and manage device data fetched fr
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/acieshk/onestepGPSLeo.git
+git clone https://github.com/acieshk/OneStepGPSLeoProject.git
 ```
 
 ### 2. Backend (Go)
@@ -74,7 +74,7 @@ go run server.go
 
 ### 3. Frontend (Vue.js)
 
-#### Navigate to the frontend directory:
+#### Open a new command line. Navigate to the frontend directory:
 ```bash
 cd \onestepGPSLeo\dashboard
 ```

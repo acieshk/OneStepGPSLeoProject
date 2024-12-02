@@ -1,17 +1,17 @@
 # Device Dashboard
 
-This project provides a dashboard to visualize and manage device data fetched from the OneStepGPS API. It features a map view, a list view, customizable device icons, and an interface to edit device properties.
+This project provides a dashboard to visualize and manage device data fetched from the OneStepGPS API. 
 
 ---
 
 ## Features
 
-- **Map View**: Displays devices on a map with customizable icons.  
+- **Map View**: Displays devices on a map with customizable icons.
 - **List View**: Presents device data in a sortable and filterable list.  
 - **Device Icon Upload**: Allows users to upload custom icons for each device.  
-- **Device Details Editing**: Provides an interface to edit device properties, with validation and change tracking.  
+- **Device Details Editing**: Provides an treeview to edit device properties. 
 - **Database Refresh**: Enables manual refresh of device data from the OneStepGPS API.  
-- **User Preferences**: Lets users set distance units (km/mi) and layout preferences (horizontal/vertical).
+- **User Preferences**: Lets users set distance units (km/mi) and save width of the left side drawer.
 
 ---
 
@@ -19,7 +19,7 @@ This project provides a dashboard to visualize and manage device data fetched fr
 
 - **Go (1.16 or later)**: Backend server.  
 - **Node.js and npm**: Required for the frontend (Vue.js).  
-- **MongoDB**: Database for storing device data.
+- [**MongoDB**](https://www.mongodb.com/products/tools/compass): Database for storing device data.
 
 ---
 
@@ -27,7 +27,7 @@ This project provides a dashboard to visualize and manage device data fetched fr
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/your-username/device-dashboard.git
+git clone https://github.com/acieshk/onestepGPSLeo.git
 ```
 
 ### 2. Backend (Go)
@@ -109,17 +109,22 @@ npm run dev  # or yarn dev
 
 6. **User Preferences**:  
    Use the settings icon to adjust distance units and dashboard layout preferences.
+---
+## Lessons Learnt
+Transitioning from Angular to Vue for this project has been a significant learning experience for me. As a former Angular developer, I encountered several challenges while adapting to Vue's ecosystem. One of the major hurdles was navigating the various UI tools available. I found that some libraries lacked sufficient documentation and functionality, which hindered my progress. For instance, I initially used Element Plus for form components but had to switch to Quasar to better meet my needs. Similarly, I started with Leaflet for mapping but ultimately transitioned to OpenLayers for its enhanced capabilities.
 
+Despite these challenges, I genuinely enjoyed working within the Vue ecosystem. The flexibility and simplicity of Vue have greatly facilitated my development process, allowing me to focus more on building features rather than getting bogged down by complex configurations. This project has not only improved my technical skills but also deepened my appreciation for Vue as a powerful framework for building user interfaces.
+
+Overall, this experience has taught me the importance of choosing the right tools and being adaptable in the face of challenges, which I believe will be invaluable in my future projects.
 ---
 ## Future Improvements
 
 * **Cloud Storage for Icons:** Currently, device icons are stored on the server's local file system. For production deployments, migrating to a cloud storage service like Google Cloud Storage, Amazon S3, or Azure Blob Storage is recommended for improved scalability, security, and maintainability.
-* **Form Validation:** Currently, basic client-side form validation is implemented using Vue.js. However, due to the lack of access to comprehensive requirements and the full range of possible form values, the validation is incomplete and requires further refinement.
-* **User Authentication and Authorization:** Implement a secure authentication and authorization mechanism to control access to the dashboard and its features.  Consider using industry-standard authentication protocols like OAuth 2.0 or OpenID Connect.
+* **Form Validation:** Currently, basic client-side form validation is implemented using Vue.js
+* **User Authentication and Authorization:** Could implement a user system with Implement a secure authentication and authorization mechanism to control access to the dashboard and its features.  Consider using industry-standard authentication protocols like OAuth 2.0 or OpenID Connect.
 * **API Rate Limiting:** Implement API rate limiting to prevent abuse of the OneStepGPS API/ and ensure the application's stability.
 * **Improved Error Handling:** Enhance error handling throughout the application to provide more informative and user-friendly error messages.
 * **Unit and Integration Tests:** Write comprehensive unit and integration tests to improve code quality and ensure the application's reliability.
 * **Deployment Automation:** Automate the deployment process using tools like Docker and Kubernetes for easier and more reliable deployments.
 * **Real-time Updates:** Implement real-time updates for device locations using WebSockets or Server-Sent Events.  This would provide a more dynamic and responsive user experience.
 * **Performance Optimization:** Optimize database queries and frontend rendering to improve the application's performance and responsiveness, especially when handling a large number of devices.
-* **env file:** Create a environment file to store sensitive information such as API keys and database credentials.  This will improve security and make it easier to manage configuration settings across different environments.

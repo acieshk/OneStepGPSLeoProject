@@ -204,8 +204,8 @@ const formatOdometer = (odometerData: { value: number, unit: string }) => {
 				unit = 'km';
 			}
 			break; // No conversion needed if already kilometers
-		// case 'original': // No conversion needed
-		//     break;  This is the default so no changes need to be made
+		case 'original': // No conversion needed
+		    break;  
 		default: // Handle invalid or unknown units from user preferences
 			console.warn(`Unknown unit preference: ${userPreferences.value.unit}`);
 	}

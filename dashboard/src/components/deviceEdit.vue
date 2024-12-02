@@ -327,29 +327,99 @@ const isArrayChild = (node: TreeNode): boolean => {
 };
 
 const addArrayItem = (node: TreeNode) => {
-	if (!node.children) node.children = [];
+  if (!editingDevice.value) return;
 
-	const newIndex = node.children.length;
-	const newNode: TreeNode = {
-		_id: `${node._id}_${newIndex}`,
-		label: `[${newIndex}]`,
-		value: null
-	};
+  const pathParts = node._id.split('.');
+  const currentArray = pathParts.reduce((acc: Record<string, unknown>, key) => {
+    // Handle array index notation
+    const arrayMatch = key.match(/(\w+)\[(\d+)\]/);
+    if (arrayMatch) {
+      const [, arrayName] = arrayMatch;
+      return acc[arrayName] as Record<string, unknown>;
+    }
+    return acc[key] as Record<string, unknown>;
+  }, editingDevice.value as Record<string, unknown>);
 
-	node.children.push(newNode);
-	updateNodeValue(node, newIndex, null);
+  if (Array.isArray(currentArray)) {
+    // Add a null or default value to the array
+    currentArray.push(null);
+    
+    // Update the device property to trigger reactivity
+    deviceStore.updateDeviceProperty(pathParts, currentArray);
+  }
 };
 
 const removeArrayItem = (node: TreeNode) => {
-	if (!node.parent?.children) return;
+  console.log('Attempting to remove array item');
+  console.log('Node to remove:', node);
 
-	const index = node.parent.children.findIndex(child => child._id === node._id);
-	if (index !== -1) {
-		node.parent.children.splice(index, 1);
-		node.parent.children.forEach((child, idx) => {
-			child.label = `[${idx}]`;
-		});
-	}
+  // Find the parent array node manually
+  const findParentArrayNode = (nodes: TreeNode[]): TreeNode | null => {
+    for (const n of nodes) {
+      if (n.children && n.children.includes(node)) {
+        return n;
+      }
+      if (n.children) {
+        const found = findParentArrayNode(n.children);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  const parentNode = findParentArrayNode(deviceNodes.value);
+  console.log('Parent node found:', parentNode);
+
+  if (!editingDevice.value || !parentNode) {
+    console.log('Cannot remove item - no parent found');
+    return;
+  }
+
+  // Extract the array path
+  const arrayPathParts = parentNode._id.split('.');
+  console.log('Array path parts:', arrayPathParts);
+
+  // Retrieve the current array
+  const currentArray = arrayPathParts.reduce((acc: Record<string, unknown>, key) => {
+    const arrayMatch = key.match(/(\w+)\[(\d+)\]/);
+    if (arrayMatch) {
+      const [, arrayName] = arrayMatch;
+      return acc[arrayName] as Record<string, unknown>;
+    }
+    return acc[key] as Record<string, unknown>;
+  }, editingDevice.value as Record<string, unknown>);
+
+  console.log('Current array before removal:', currentArray);
+
+  if (Array.isArray(currentArray)) {
+    // Extract the actual index from the node's label
+    const indexMatch = node.label.match(/\[(\d+)\]/);
+    if (!indexMatch) {
+      console.log('No index match found');
+      return;
+    }
+
+    const indexToRemove = parseInt(indexMatch[1], 10);
+    console.log('Index to remove:', indexToRemove);
+
+    // Remove the item at the specified index
+    currentArray.splice(indexToRemove, 1);
+    console.log('Array after splice:', currentArray);
+    
+    // Update the device property to trigger reactivity
+    deviceStore.updateDeviceProperty(arrayPathParts, currentArray);
+
+    // Refresh the tree nodes
+    if (parentNode.children) {
+      parentNode.children = parentNode.children
+        .filter(child => child._id !== node._id)
+        .map((child, newIndex) => ({
+          ...child,
+          label: `[${newIndex}]`,
+          _id: `${parentNode._id}[${newIndex}]`
+        }));
+    }
+  }
 };
 
 const isDateValue = (value: unknown): boolean => {

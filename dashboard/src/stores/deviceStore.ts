@@ -100,8 +100,14 @@ export const useDeviceStore = defineStore('device', () => {
     }
 
 	function setMapIconVisibility(_id: string, visibility: boolean) {
-		mapIconVisibility.value.set(_id, visibility);
-		mapIconVisibility.value = new Map(mapIconVisibility.value);
+        const deviceIndex = devices.value.findIndex(d => d._id === _id);
+
+        if (deviceIndex !== -1) {
+            devices.value[deviceIndex].visible = visibility;
+
+			// Trigger reactivity by replacing the devices array.  Deep copy isn't always needed, but better to be safe for arrays
+			devices.value = [...devices.value];
+        }
 	}
 
 	function setEditingDevice(device: Device | null) {

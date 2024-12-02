@@ -1,8 +1,22 @@
 <template>
-	{{ selectedDeviceId }}
-	<q-table title="Devices" :rows="devices" :columns="columns" v-model:pagination.sync="pagination"
-		:rows-per-page-options="[10, 25, 50, 100, 0]" row-key="_id" @row-click="handleRowClick"
+	<q-table title="Devices" 
+	:rows="devices" :columns="columns" v-model:pagination.sync="pagination"
+		:rows-per-page-options="[10, 25, 50, 100, 0]" row-key="_id" 
+		@row-click="handleRowClick"
 		@mouseover="handleRowMouseover" @mouseout="handleRowMouseout">
+		<template v-slot:header-cell-visible="props">
+		<q-th :props="props">
+			<q-btn 
+			flat 
+			dense 
+			icon="visibility" 
+			:class="{ 'visibility-on': allVisible }"
+			@click="toggleAllVisibility"
+			>
+			{{ `Visible (${visibleDevices}/${totalDevices})` }}
+			</q-btn>
+		</q-th>
+		</template>
 		<template v-slot:body-cell-actions="props">
 			<q-td :props="props" class="action-cell">
 				<q-btn flat round dense icon="edit" @click.stop="goToEditDevice(props.row)" />
@@ -55,6 +69,8 @@ const pagination = ref({
 	rowPerPageOptions: [10, 25, 50, 100, 0]
 });
 
+
+
 const columns = computed(() => {
 	if (!devices.value || devices.value.length === 0) {
 		return []; // Or a default set of columns if needed
@@ -75,6 +91,7 @@ const columns = computed(() => {
 			label: `Visible (${visibleDevices}/${totalDevices})`,
 			field: 'visible',
 			align: 'center' as 'left' | 'right' | 'center',
+			sortable: false,
 		},
 		{
 			name: 'iconUrl',
@@ -126,6 +143,17 @@ const columns = computed(() => {
 		}
 	];
 });
+
+const allVisible = computed(() => devices.value.every(device => device.visible));
+const visibleDevices = computed(() => devices.value.filter(device => device.visible).length);
+const totalDevices = computed(() => devices.value.length);
+
+const toggleAllVisibility = () => {
+  const newValue = !allVisible.value;
+  devices.value.forEach(device => {
+    deviceStore.setMapIconVisibility(device._id, newValue);
+  });
+};
 /*
 	Row Functionality
 */
@@ -330,5 +358,8 @@ visibility-cell {
 
 .status-indicator.offline {
 	background-color: #f44336;
+}
+.visibility-on {
+  color: green; 
 }
 </style>

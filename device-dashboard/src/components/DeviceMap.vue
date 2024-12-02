@@ -104,9 +104,9 @@ const debouncedUpdateMarkers = _.debounce(() => {
 const { getDeviceIcon } = userStore; 
 
 const createLeafletIcon = (device: Device) => {
-    // Use the iconURL that should already be in the device object from userStore
+    // Use the iconUrl that should already be in the device object from userStore
     return L.icon({
-        iconUrl: device.iconURL || `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${device.color}.png`,
+        iconUrl: device.iconUrl || `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${device.color}.png`,
         iconSize: [25, 41],
         iconAnchor: [12, 41],
         popupAnchor: [0, -41]

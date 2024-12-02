@@ -59,12 +59,12 @@ const handleMapReady = () => {
 };
 
 // const getIcon = (device:Device) => {
-// 	// Existing getIcon logic - construct icon based on iconURL or color
+// 	// Existing getIcon logic - construct icon based on iconUrl or color
 // 	console.log("getIcon", device);
-// 	if (device.iconURL) {
+// 	if (device.iconUrl) {
 // 		return new L.Icon({
 
-// 			iconUrl: device.iconURL,
+// 			iconUrl: device.iconUrl,
 // 			iconSize: [32, 32],
 // 			iconAnchor: [16, 32],
 // 		});

@@ -89,8 +89,8 @@ const displayValue = (value: any) => {
 
 const handleIconUpload = (newIconUrl: string) => {
     if (deviceToEdit.value) {
-        // Update the device's iconURL directly
-        deviceToEdit.value.iconURL = newIconUrl;
+        // Update the device's iconUrl directly
+        deviceToEdit.value.iconUrl = newIconUrl;
         
         // Optional: You might want to update the icon in the user store as well
         const userStore = useUserStore();
@@ -99,7 +99,7 @@ const handleIconUpload = (newIconUrl: string) => {
         );
         
         if (deviceIndex !== -1) {
-            userStore.devices[deviceIndex].iconURL = newIconUrl;
+            userStore.devices[deviceIndex].iconUrl = newIconUrl;
         }
     }
 };
@@ -264,8 +264,8 @@ const saveDevice = async () => {
     try {
         const updatedDevice = unflattenObject(tableData.value);
 
-		if (deviceToEdit.value?.iconURL) {
-            updatedDevice.iconURL = deviceToEdit.value.iconURL;
+		if (deviceToEdit.value?.iconUrl) {
+            updatedDevice.iconUrl = deviceToEdit.value.iconUrl;
         }
         // Call the API service to update the device:
         const savedDevice = await apiService.updateDevice(updatedDevice._id, updatedDevice);  // Ensure _id is correct

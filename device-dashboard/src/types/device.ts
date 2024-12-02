@@ -4,7 +4,7 @@ export interface Device {
 	active_state: string;
 	bcc_id: string;
 	color?: string;  
-	iconURL?: string;
+	iconUrl?: string;
 	conn_data: {
 		auth_token: string;
 		device_id: string;

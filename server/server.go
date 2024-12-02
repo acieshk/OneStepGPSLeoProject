@@ -295,62 +295,89 @@ func createCollectionIfNotExists(db *mongo.Database, collectionName string) erro
 }
 
 func handleIconUpload(c *gin.Context, h *Handlers) {
+	// Add logging at the start
+	log.Printf("Starting icon upload for device ID: %s", c.Param("id"))
+
+	deviceIDStr := c.Param("id")
+	deviceID, err := primitive.ObjectIDFromHex(deviceIDStr)
+	if err != nil {
+		log.Printf("Invalid device ID: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid device ID"})
+		return
+	}
+
+	// First check if the device exists
+	collection := h.DBClient.Database(h.Config.DatabaseName).Collection(h.Config.DeviceCollectionName)
+	filter := bson.M{"_id": deviceID}
+
+	var device bson.M
+	err = collection.FindOne(context.TODO(), filter).Decode(&device)
+	if err != nil {
+		log.Printf("Error finding device: %v", err)
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Device not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
+		log.Printf("Error getting form file: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to retrieve uploaded file"})
 		return
 	}
 	defer file.Close()
 
-	// Validate file type and size
-	if err := validateImageFile(file, header); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Reset file pointer after validation
-	_, err = file.Seek(0, io.SeekStart) // Resetting after reading the file header
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to reset file pointer %v", err)})
-		return
-	}
-
-	iconsDir := "./device-icons" // Path for storing icons
-	if err := os.MkdirAll(iconsDir, os.ModePerm); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create icon directory"})
-		return
-	}
-
-	deviceIDStr := c.Param("id")
-	deviceID, err := primitive.ObjectIDFromHex(deviceIDStr)
+	// Log file details
+	log.Printf("Received file: %s, size: %d", header.Filename, header.Size)
 
 	// Create the icon directory if it doesn't exist
 	iconDir := "./icons"
 	if err := os.MkdirAll(iconDir, os.ModePerm); err != nil {
-
+		log.Printf("Error creating icon directory: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create icon directory"})
 		return
 	}
 
-	filename := fmt.Sprintf("%s.png", deviceID.Hex()) // Use device ID as filename + extension
-
+	filename := fmt.Sprintf("%s.png", deviceID.Hex())
 	filepath := filepath.Join(iconDir, filename)
+
+	// Log file path
+	log.Printf("Saving file to: %s", filepath)
 
 	// Save file locally
 	outFile, err := os.Create(filepath)
-
+	if err != nil {
+		log.Printf("Error creating file: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to create file: %v", err)})
+		return
+	}
 	defer outFile.Close()
 
-	_, err = io.Copy(outFile, file)
-
-	iconURL := fmt.Sprintf("%s:%s/icons/%s", h.Config.FrontendURL, h.Config.FrontendPort, filename)
-
-	if err := updateDeviceIconURL(h, deviceID, iconURL); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update device icon URL"})
+	if _, err = io.Copy(outFile, file); err != nil {
+		log.Printf("Error copying file: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to save file: %v", err)})
 		return
-
 	}
 
-	c.JSON(http.StatusOK, gin.H{"iconURL": iconURL})
+	// Generate the icon URL
+	iconUrl := fmt.Sprintf("http://localhost:%s/icons/%s", h.Config.ServerPort, filename)
+	log.Printf("Generated icon URL: %s", iconUrl)
+
+	// Update database to remove iconUrl
+	update := bson.M{"$set": bson.M{"iconUrl": iconUrl}}
+	result, err := collection.UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		log.Printf("Error updating database: %v", err)
+		os.Remove(filepath)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update device icon URL"})
+		return
+	}
+
+	log.Printf("Database update result: %+v", result)
+	c.JSON(http.StatusOK, gin.H{"iconUrl": iconUrl})
 }
 
 func validateImageFile(file io.Reader, header *multipart.FileHeader) error {
@@ -389,15 +416,15 @@ func saveIconFile(file multipart.File, filename string, h *Handlers) error {
 	return nil
 }
 
-func updateDeviceIconURL(h *Handlers, deviceID primitive.ObjectID, iconURL string) error {
-	// ... your logic to update the iconURL in the database (similar to updateDeviceHandler)
+func updateDeviceIconURL(h *Handlers, deviceID primitive.ObjectID, iconUrl string) error {
+	// ... your logic to update the iconUrl in the database (similar to updateDeviceHandler)
 	filter := bson.M{"_id": deviceID}
-	update := bson.M{"$set": bson.M{"iconUrl": iconURL}} // Assuming "icon_url" is the field in MongoDB
+	update := bson.M{"$set": bson.M{"iconUrl": iconUrl}} // Assuming "icon_url" is the field in MongoDB
 
 	_, err := h.DevicesCollection.UpdateOne(context.TODO(), filter, update) // Use the correct collection
 
 	if err != nil {
-		return fmt.Errorf("failed to update iconURL %v", err)
+		return fmt.Errorf("failed to update iconUrl %v", err)
 	}
 
 	return nil

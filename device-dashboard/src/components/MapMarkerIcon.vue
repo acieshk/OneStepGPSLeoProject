@@ -35,7 +35,7 @@ const handleImageError = () => {
 
 
 const fetchIcon = async () => {
-	console.log("URL: ", props.device.iconURL);
+	console.log("URL: ", props.device.iconUrl);
 	// Example implementation: Fetching icon from a mock API endpoint
 
 	console.log("fetchIcon called with deviceId:", props.deviceId); // Log when fetchIcon starts

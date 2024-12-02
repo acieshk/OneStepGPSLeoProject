@@ -86,7 +86,7 @@ const emit = defineEmits(['icon-uploaded']);
 
 const handleSuccess = (response) => {
 	console.log('Icon uploaded successfully:', response);
-	emit('icon-uploaded', response.iconURL); // Emit the new icon URL
+	emit('icon-uploaded', response.iconUrl); // Emit the new icon URL
 	ElMessage({
 		message: 'Icon uploaded successfully.',
 		type: 'success',

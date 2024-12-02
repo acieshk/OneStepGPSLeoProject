@@ -38,8 +38,8 @@ export const useUserStore = defineStore({
 		},
 		//This logic is needed because for leaflet
 		async getDeviceIcon(device: Device): Promise<string> { //getIcon will always return something
-			if (device.iconURL) {
-				return device.iconURL;
+			if (device.iconUrl) {
+				return device.iconUrl;
 			} else {
 				const color = device.color || 'blue';
 				return `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`; // Construct default icon URL
@@ -50,12 +50,12 @@ export const useUserStore = defineStore({
 				const fetchedDevices = await apiService.getDevices();
 				this.devices = await Promise.all(fetchedDevices.result_list.map(async (device: Device, index: number) => {
 					const color = this.assignDeviceColor(device, index);
-					const iconURL = device.iconURL || await this.getDeviceIcon({ ...device, color: color });
+					const iconUrl = device.iconUrl || await this.getDeviceIcon({ ...device, color: color });
 
 					const newDevice = {
 						...device,
 						color: color,
-						iconURL: iconURL,
+						iconUrl: iconUrl,
 						visible: true
 					};
 					

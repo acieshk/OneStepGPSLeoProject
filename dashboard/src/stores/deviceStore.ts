@@ -163,6 +163,54 @@ export const useDeviceStore = defineStore('device', () => {
 		editingDevice.value = updatedDevice;
 	}
 
+    async function updateIcon(deviceId: string, iconFile: File | null, iconPath: string | null) {
+        try {
+			console.log('update icon');
+            deviceLoading.value = true;
+
+            if (iconFile) {  // Handle file upload
+                const response = await apiService.uploadDeviceIcon(deviceId, iconFile);
+				console.log(JSON.stringify(response));
+				const newIconURL = response.iconUrl; // or however your API returns the URL
+
+				if (!newIconURL) {
+					throw new Error('API did not return an icon URL after upload.');
+				}
+
+                // Update iconUrl in editingDevice and devices array
+                editingDevice.value!.iconUrl = newIconURL;
+				const deviceIndex = devices.value.findIndex(d => d._id === deviceId);
+				if (deviceIndex !== -1) {
+					devices.value[deviceIndex].iconUrl = newIconURL;
+                    devices.value = [...devices.value]; // Trigger reactivity for devices array
+				}
+                console.log('Icon uploaded:', newIconURL);
+
+            } else if (iconPath) { // Update existing Device
+				const deviceIndex = devices.value.findIndex(d => d._id === deviceId);
+				if (deviceIndex !== -1) {
+                    devices.value[deviceIndex].iconUrl = iconPath;
+                    devices.value = [...devices.value]; // Trigger reactivity
+                }
+            } else {
+                editingDevice.value!.iconUrl = '';
+				const deviceIndex = devices.value.findIndex(d => d._id === deviceId);
+				if (deviceIndex !== -1) {
+					devices.value[deviceIndex].iconUrl = '';
+                    devices.value = [...devices.value]; // Trigger reactivity for devices array
+				}
+				const response = await apiService.removeDeviceIcon(deviceId);
+				console.log(JSON.stringify(response));
+				console.log('Icon removed');
+			}
+
+        } catch (error) {
+			console.error('Error updating icon:', error);
+            // Handle error (e.g., display error message)
+        } finally {
+            deviceLoading.value = false;
+        }
+    }
 
 
 	return {
@@ -173,6 +221,6 @@ export const useDeviceStore = defineStore('device', () => {
 		loadDevices, selectDevice, deselectDevice, setMapReady,
 		setHoveredDevice, toggleDeviceVisibility, setMapIconVisibility,
 		setEditingDevice, setEditingDeviceByID, updateDeviceProperty,
-		updateDevice
+		updateDevice, updateIcon
 	};
 });

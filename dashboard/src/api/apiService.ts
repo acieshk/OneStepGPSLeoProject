@@ -152,73 +152,66 @@ class ApiService {
 		}
 	}
 
-			// async uploadDeviceIcon(deviceId: string, iconFile: File): Promise<any> {  // New function
-			//     const endpoint = `${configService.getApiUrl()}/fetch-devices`;
-			// 	try {
-			//         const formData = new FormData();
-			//         formData.append('file', iconFile);
+	 async removeDeviceIcon(deviceId: string): Promise<unknown> {
+		const response = await fetch(`${this.baseUrl}/devices/${deviceId}/icon?remove=true`, {
+			method: 'POST',  // or 'DELETE' if you prefer
+		});
+		if (!response.ok) {
+			throw new Error('Failed to remove icon');
+		}
+		return await response.json();
+	}
 
-			//         const response = await fetch(`${this.baseUrl}/devices/${deviceId}/icon`, { // Correct URL for icon upload
-			//             method: 'POST',
-			//             body: formData, // Correctly sending FormData
-			//         });
-
-			//         if (!response.ok) {
-			//             const errorData = await response.json(); // Try to get JSON error; fallback to statusText
-			//             throw new Error(`Failed to upload icon: ${errorData.error || response.statusText}`);
-			//         }
-
-
-			//         return await response.json();
-			//     } catch (error) {
-
-			//         console.error('Error uploading device icon:', error);
-			//         throw error;
-			//     }
-			// }
-
-
-
-
-			//         return await response.json();  // Return preferences
-			//     } catch (error) {
-			//         console.error("Error getting user preferences:", error);
-			//         throw error; // Re-throw to be handled by the component
-			//     }
-			// }
-
-			// // return path of the icon, or null if icon is not found
-			// async getIcon(deviceId: string): Promise<string | null> {
-			// 	if (!deviceId) {
-			// 		return null;
-			// 	}
-			// 	return `${configService.getApiUrl()}/icons/${deviceId}.png`;
-
-			// 	const iconUrl = `${configService.getApiUrl()}/getIcon/${deviceId}`; // Correct URL
-			// 	console.log("GET ICON:" + deviceId);
-			// 	console.log(`${configService.getApiUrl()}`)
-			// 	console.log("icon url" + iconUrl);
-			// 	try {
-			// 		const response = await fetch(iconUrl);
-			// 		if (!response.ok) {  // Check for any server error (not just 404)
-			// 			const errorText = await response.text()
-			// 			console.error(`Error getting icon for device ${deviceId}:`, response.status,  errorText);
-			// 			throw new Error (`Error getting icon for device ${deviceId}: ${response.status} ${errorText}`) // Throw error for the component to handle
-			// 		}
-
-			// 		const iconPathFromServer = await response.text(); // Get the icon path from the server
-
-			// 		if (iconPathFromServer !== "") {  // Custom icon exists
-			// 			return `${configService.getApiUrl()}${iconPathFromServer}`; // Construct and return the full URL
-			// 		} else {
-			// 			return null; // No custom icon, return null (for default icon logic)
-			// 		}
-
-			// 	} catch (error) {
-			// 		console.error("Error fetching icon:", error);
-			// 		return null;  // Handle the error as needed (e.g., return null for default icon)
-			// 	}
-			// }
+	async uploadDeviceIcon(deviceId: string, iconFile: File): Promise<{iconUrl: string}> {
+		try {
+		  const formData = new FormData();
+		  // Make sure to use the same field name that your server expects
+		  
+		  formData.append('file', iconFile); 
+	  
+		  const response = await fetch(`${this.baseUrl}/devices/${deviceId}/icon`, {
+			method: 'POST',
+			body: formData
+		  });
+	
+	  
+		  if (!response.ok) {
+			const errorData = await response.json();
+			throw new Error(JSON.stringify(errorData));
+		  }
+	  
+		  return {iconUrl:`${this.baseUrl}/icons/${deviceId}.png`};
+		} catch (error) {
+		  console.error('Error uploading device icon:', error);
+		  throw error;
+		}
+	  }
+	
+	
+	
+	// return path of the icon, or null if icon is not found
+	async getIcon(deviceId: string): Promise<string | null> {
+		try {
+			const response = await fetch(`${config.api.baseUrl}:${config.api.port}/icons/${deviceId}`); // Correct URL structure.  Adjust as needed.
+			if (!response.ok) {
+				if (response.status === 404) { // If no icon exists for this device ID, this is a valid case.
+					return null;  // Return null to indicate no icon, don't throw
+				}
+				// For other errors, throw
+				const errorText = await response.text();
+				throw new Error(`Error getting icon: ${response.status} - ${errorText}`); // Detailed error
+			}
+	
+	
+			// Assuming the API returns the icon URL directly:
+			return await response.json() as string; // Type assertion since server should return path as string
+			
+		} catch (error) {
+			console.error('Error fetching icon:', error);  // Log the error for debugging
+			throw error; // then rethrow it
+			// Or return a default icon URL if there is one, or return null and have UI use a placeholder icon.
+		}
+	}
 
 
 }

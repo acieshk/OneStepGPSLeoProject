@@ -122,10 +122,12 @@ let isResizing = false;
 const minDrawerWidth = 200;
 
 function toggleLeftDrawer() {
+	console.log('open the drawer');
+	console.log(drawerWidth.value);
 	leftDrawerOpen.value = !leftDrawerOpen.value;
 	    // Set drawer width from user preferences when opening
 		if (leftDrawerOpen.value) {
-        drawerWidth.value = userPreferences.value.DeviceListWidth; // Use .value to access ref
+        	drawerWidth.value = userPreferences.value.DeviceListWidth; // Use .value to access ref
     }
 }
 
@@ -151,12 +153,15 @@ function startResizing(event: MouseEvent) {
 	document.addEventListener('mouseup', onMouseUp);
 }
 
-//When the map is ready, show the left drawer
-watch(mapReady, (mapIsReady) => {
-	if (mapIsReady) {
-		toggleLeftDrawer()
-	}
-});
+// Watch both mapReady AND user loaded state
+watch([() => mapReady.value, () => userStore.userLoaded], ([mapIsReady, userIsLoaded]) => {
+    if (mapIsReady && userIsLoaded && !leftDrawerOpen.value) {  // Check both conditions and if drawer is not already open
+		// Set the drawer width *before* opening the drawer
+        drawerWidth.value = userPreferences.value.DeviceListWidth;
+        toggleLeftDrawer();
+    }
+}, { immediate: true }); // Trigger the watch initially, in case user loaded before mounted and mapReady are true
+
 
 onMounted(() => {
 	deviceStore.loadDevices();

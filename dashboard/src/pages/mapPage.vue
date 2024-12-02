@@ -1,143 +1,146 @@
 <template>
-  <l-map ref="map" :zoom="zoom" :center="center" :use-global-leaflet="false" @ready="onMapReady">
-    <l-tile-layer :url="url" :attribution="attribution"></l-tile-layer>
-    <l-marker v-for="device in devices" :key="device._id" :lat-lng="deviceLatLng(device)" :icon="deviceIcon(device)">
-    </l-marker>
-  </l-map>
+	<div id="map" ref="map" class="map"></div>
 </template>
+
 <script setup lang="ts">
-import 'leaflet/dist/leaflet.css';  // Import Leaflet CSS
-import { LMap, LTileLayer, LMarker } from '@vue-leaflet/vue-leaflet';
-import { ref, onMounted, nextTick, watch } from 'vue';
-import L, { Icon } from 'leaflet';
-import type { PointTuple } from 'leaflet';
+import { ref, onMounted, watch, shallowRef } from 'vue';
+import Map from 'ol/Map';
+import View from 'ol/View';
+import TileLayer from 'ol/layer/Tile';
+import OSM from 'ol/source/OSM';
+import { fromLonLat } from 'ol/proj.js'; // For coordinate transformation
+import Feature from 'ol/Feature';
+import Point from 'ol/geom/Point';
+import VectorLayer from 'ol/layer/Vector';
+import VectorSource from 'ol/source/Vector';
+import { Icon, Style } from 'ol/style';  // Import Icon and Style
 import { useDeviceStore } from 'src/stores/deviceStore';
 import { storeToRefs } from 'pinia';
-import { Device } from 'src/model/model';
-
-const markers = ref(new Map<string, L.Marker>());
+import type { Device } from 'src/model/model';
 
 const deviceStore = useDeviceStore();
-const { devices } = storeToRefs(deviceStore);
-const center = ref<PointTuple>([37.25, -119.75]); // Default center coordinates (New York City)
+const { devices, selectedDeviceId } = storeToRefs(deviceStore);
+const map = shallowRef<Map | null>(null);
+
+
 const zoom = ref(6);
-let map = ref<L.Map>();
-const url = ref('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');  // Base tile layer URL
-const attribution = ref('');
+const center = ref([-119.75, 37.25]); // Longitude, Latitude for OpenLayers
 
-// Fix for default icon paths
-// See https://vue2-leaflet.netlify.app/quickstart/#marker-icons-are-missing
-// @ts-expect-error Ignore the error because it is exactly what documention tells me to do
-delete Icon.Default.prototype._getIconUrl;
-Icon.Default.mergeOptions({
-	iconRetinaUrl: new URL('leaflet/dist/images/marker-icon-2x.png', import.meta.url).href,
-	iconUrl: new URL('leaflet/dist/images/marker-icon.png', import.meta.url).href,
-	shadowUrl: new URL('leaflet/dist/images/marker-shadow.png', import.meta.url).href,
+
+onMounted(() => {
+	// Initialize the map after the component is mounted
+	map.value = new Map({
+		target: 'map', // Reference to your map div
+		layers: [
+			new TileLayer({
+				source: new OSM()
+			})
+		],
+		view: new View({
+			center: fromLonLat(center.value), // Transform to OpenLayers coordinates
+			zoom: zoom.value
+		}),
+		controls: [], // This hides all default controls.  Remove or customize this for fine-grained control visibility.
+	});
+
+	// Initial marker creation
+	createMarkers();
+
+	// Watch for changes in devices (including visibility, locations, etc.)
+	watch(devices, () => {
+		// Remove existing markers before recreating so you don't have duplicates and also takes care of visibility since markers are recreated
+		if (map.value)
+		{
+			map.value.getLayers().forEach(layer => {
+				if (layer instanceof VectorLayer) {
+					map.value?.removeLayer(layer);
+				}
+			});
+		}
+		createMarkers(); // Recreate markers based on updated data
+	}, { deep: true });
 });
 
-const DEFAULT_ICON = L.icon({ // Create a default icon for consistent default icon implementation
-    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', // Use HTTPS URL
-    iconSize: [25, 41], // Adjust as needed
-    iconAnchor: [12, 41], // Adjust as needed
-    popupAnchor: [1, -34], // Adjust as needed
-    tooltipAnchor: [16, -28], // Adjust as needed
-	shadowSize: [41, 41] // Adjust as needed
+const defaultIcon = new Icon({
+  src: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+  width: 48,  
+  height: 48
 });
 
-const deviceLatLng = (device: Device): L.LatLngTuple  => {
-    if (device.latest_device_point) {
-        return [device.latest_device_point.lat, device.latest_device_point.lng];
+
+
+
+const createMarkers = () => {
+	const features = devices.value.filter(device => device.visible).map(device => { // Filters out non-visible devices.
+		return new Feature({
+			geometry: new Point(fromLonLat(deviceLatLng(device))), // Convert coordinates
+			device: device // Store the device data directly in the feature for easy access later.
+		});
+	});
+
+	const vectorSource = new VectorSource({
+		features: features
+	});
+
+	const vectorLayer = new VectorLayer({
+    source: vectorSource,
+    style: feature => {
+      const device: Device = feature.get('device');
+      const icon = device.iconUrl ? new Icon({ 
+        src: device.iconUrl, 
+        width: 48,  
+        height: 48
+      }) : defaultIcon; 
+
+      return new Style({
+        image: icon
+		
+      });
     }
-    return [0,0]; 
+  });
+
+
+	map.value?.addLayer(vectorLayer);
 };
 
-const onMapReady = (leafletMap: L.Map) => {
-	map.value = leafletMap;
-	deviceStore.setMapReady(true);
+
+
+const deviceLatLng = (device: Device): [number, number] => { // Returns [lon, lat]
+	if (device.latest_device_point) {
+		return [device.latest_device_point.lng, device.latest_device_point.lat];
+	}
+	return [0, 0]; // Default if no location data is available
 };
 
+onMounted(() => {
+    // ... (map initialization)
 
-onMounted(async () => {
-    await nextTick();
+    // Watch for changes in selectedDeviceId
+    watch(selectedDeviceId, (newDeviceId) => {
+        if (newDeviceId && map.value) {
+            const selectedDevice = devices.value.find(device => device._id === newDeviceId);
+            if (selectedDevice && selectedDevice.latest_device_point) {
+                const coordinates = fromLonLat([selectedDevice.latest_device_point.lng, selectedDevice.latest_device_point.lat]);
 
-    if (map.value) {
-        if (map.value) {
-            deviceStore.setMapReady(true);
-            createMapMarkers();
+				// Option 1: Instant pan
+                // map.value.getView().setCenter(coordinates);
+
+				// Option 2: Animated pan (smoother)
+                map.value.getView().animate({
+                    center: coordinates,
+                    duration: 500 // Animation duration in milliseconds
+                });
+
+
+            }
         }
-    }
+    });
 });
-
-const deviceIcon = (device: Device) => {
-    if (!device.iconUrl) return DEFAULT_ICON;
-    
-    try {
-        return L.icon({ 
-            iconUrl: String(device.iconUrl), // Convert to string explicitly
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34]
-        });
-    } catch (error) {
-        console.error(`Error creating icon for device: ${device._id}`, error);
-        return DEFAULT_ICON;
-    }
-};
-
-interface LeafletMarker extends L.Marker {
-    _leaflet_id?: number;
-}
-
-// Then update the marker creation:
-const createMapMarkers = () => {
-    if (!map.value) return;
-    
-    // First, remove all existing markers from the map
-    map.value.eachLayer((layer) => {
-        if (layer instanceof L.Marker) {
-            map.value?.removeLayer(layer);
-        }
-    });
-    
-    // Clear the markers Map
-    markers.value.clear();
-
-    // Create new markers
-    devices.value.forEach(device => {
-        if(!map.value || !deviceLatLng(device)) return;
-        const marker = L.marker(deviceLatLng(device)!, { icon: deviceIcon(device) }) as LeafletMarker;
-        marker.addTo(map.value);
-        markers.value.set(device._id, marker);
-        if (marker._leaflet_id) {
-            device.markerId = marker._leaflet_id;
-        }
-    });
-};
-
-watch(devices, (newDevices) => {
-    if (!map.value) return;
-    newDevices.forEach(device => {
-        if (!device.markerId) return;
-        
-        const marker = markers.value.get(device._id);
-        if (!marker) return;
-
-        marker.setIcon(deviceIcon(device));
-        const newLatLng = deviceLatLng(device);
-        if (newLatLng) {
-            marker.setLatLng(newLatLng);
-        }
-    });
-}, { deep: true });
 </script>
 
-<style lang="scss" scoped>
-.map-container {
-	width: 100%;
+<style scoped>
+.map {
 	height: 100%;
-}
-.l-map {
-    height: 400px; /* or whatever height you want */
-    width: 100%;
+	width: 100%;
 }
 </style>

@@ -264,7 +264,6 @@ watch(selectedDeviceId, (newSelectedDeviceId) => {
 
 const DEFAULT_ICON_URL = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png';
 const formatURL = (url: string | null | undefined) => { // Correct type for url
-	console.log(url);
 	if (!url) return DEFAULT_ICON_URL; // Return default if null, undefined, or empty
 
 	if (typeof url !== 'string') {

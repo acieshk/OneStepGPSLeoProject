@@ -87,14 +87,17 @@ export const useDeviceStore = defineStore('device', () => {
 		mapReady.value = isReady;
 	}
 
-	function toggleDeviceVisibility(_id: string) {
-		const device = devices.value.find(d => d._id === _id);
-		if (device) {
-			device.visible = !device.visible; // Toggle visibility
-			// Update the map icon visibility map:
-			setMapIconVisibility(_id, device.visible);
-		}
-	}
+    function toggleDeviceVisibility(_id: string) {
+        const deviceIndex = devices.value.findIndex(d => d._id === _id);
+
+        if (deviceIndex !== -1) {
+            devices.value[deviceIndex].visible = !devices.value[deviceIndex].visible;
+
+			// Trigger reactivity by replacing the devices array.  Deep copy isn't always needed, but better to be safe for arrays
+			devices.value = [...devices.value];
+        }
+		// setMapIconVisibility(_id, devices.value[deviceIndex].visible);
+    }
 
 	function setMapIconVisibility(_id: string, visibility: boolean) {
 		mapIconVisibility.value.set(_id, visibility);

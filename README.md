@@ -27,14 +27,14 @@ This project provides a dashboard to visualize and manage device data fetched fr
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/acieshk/onestepGPSLeo.git
+git clone https://github.com/acieshk/OneStepGPSLeoProject.git
 ```
 
 ### 2. Backend (Go)
 
 #### Navigate to the server directory:
 ```bash
-cd onestepGPSLeo\server
+cd OneStepGPSLeoProject\server
 ```
 
 #### Install dependencies:
@@ -62,6 +62,7 @@ Edit the config.json file in the server directory and configure the following se
 ```
 
 **Note**:  
+- You have to enter api_key as it is removed for security purpose.
 - Replace the placeholder values with your actual settings.  
 - If you're running MongoDB locally without authentication, you can omit the `mongodb_username` and `mongodb_password` fields.
 
@@ -73,9 +74,9 @@ go run server.go
 
 ### 3. Frontend (Vue.js)
 
-#### Navigate to the frontend directory:
+#### Open a new command line. Navigate to the frontend directory:
 ```bash
-cd \onestepGPSLeo\dashboard
+cd OneStepGPSLeoProject\dashboard
 ```
 
 #### Install dependencies:

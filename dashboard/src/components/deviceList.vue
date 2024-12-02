@@ -66,7 +66,7 @@ const pagination = ref({
 
 const columns = computed(() => {
 	if (!devices.value || devices.value.length === 0) {
-		return []; // Or a default set of columns if needed
+		return []; 
 	}
 
 	const visibleDevices = deviceStore.devices.filter((device: Device) => device.visible).length;

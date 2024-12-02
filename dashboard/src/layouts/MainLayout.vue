@@ -114,7 +114,6 @@ const goToUserPage = () => {
 /*
 	Drawer logic 
 */
-const { mapReady } = storeToRefs(deviceStore);
 const leftDrawerOpen = ref(false);
 const drawerWidth = ref(300);
 let isResizing = false;
@@ -152,20 +151,18 @@ function startResizing(event: MouseEvent) {
 	document.addEventListener('mouseup', onMouseUp);
 }
 
-// Watch both mapReady AND user loaded state
-watch([() => mapReady.value, () => userStore.userLoaded], ([mapIsReady, userIsLoaded]) => {
-    if (mapIsReady && userIsLoaded && !leftDrawerOpen.value) {  // Check both conditions and if drawer is not already open
-		// Set the drawer width *before* opening the drawer
-        drawerWidth.value = userPreferences.value.DeviceListWidth;
-        toggleLeftDrawer();
+// Watch user loaded state
+watch(() => userStore.userLoaded, (userIsLoaded) => {
+	if (userIsLoaded && !leftDrawerOpen.value) {
+        drawerWidth.value = userPreferences.value.DeviceListWidth; 
+        leftDrawerOpen.value = true; // Directly set to true - no toggle
     }
-}, { immediate: true }); // Trigger the watch initially, in case user loaded before mounted and mapReady are true
+}, { immediate: true });
 
 
 onMounted(() => {
 	deviceStore.loadDevices();
 	userStore.loadUser();
-	console.log('onmounted');
 });
 </script>
 <style scoped>

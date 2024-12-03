@@ -288,19 +288,26 @@ watch(selectedDeviceId, (newSelectedDeviceId) => {
 	icon
 */
 
-const DEFAULT_ICON_URL = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png';
-const formatURL = (url: string | null | undefined) => { 
-	if (!url) return DEFAULT_ICON_URL; // Return default if null, undefined, or empty
+const DEFAULT_ICON_PREFIX = 'raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-';
+const DEFAULT_ICON_URL = 'https://' + DEFAULT_ICON_PREFIX + 'blue.png';
+
+
+const formatURL = (url: string | null | undefined) => {
+	if (!url) return DEFAULT_ICON_URL;
 
 	if (typeof url !== 'string') {
-		console.warn(`formatURL received a non-string value: ${typeof url}, ${url}`); // Log for debugging
-		return DEFAULT_ICON_URL;
+		console.warn(`formatURL received a non-string value: ${typeof url}, ${url}`);
+		return DEFAULT_ICON_URL; 
 	}
 
-	if (url.startsWith('http://') || url.startsWith('https://')) {
-		return url;
-	}
-	return `http://${url}`; // Prepend http:// if no protocol
+    if (url.startsWith(DEFAULT_ICON_PREFIX)) {
+		return `https://${url}`; // Add https:// for default icons
+    } else if (url.startsWith('http://') || url.startsWith('https://')) {
+        return url; 
+    } else {
+        return `http://${url}`; // Custom URL, prepend http://
+    }
+
 };
 </script>
 <style scoped>

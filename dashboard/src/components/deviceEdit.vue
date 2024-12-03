@@ -12,6 +12,7 @@
 			</q-toolbar>
 		</div>
 		<!-- the icon uploader section -->
+		<IconUploader />
 		<div class="icon-uploader q-mb-md">
 			<div class="row items-center q-gutter-md">
 				<div class="icon-preview">
@@ -101,6 +102,7 @@
 </template>
 
 <script setup lang="ts">
+import  IconUploader  from 'components/iconUploader.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { computed, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';

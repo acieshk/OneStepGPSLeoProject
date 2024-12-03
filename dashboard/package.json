@@ -16,6 +16,7 @@
     "@quasar/extras": "^1.16.4",
     "@vue-leaflet/vue-leaflet": "^0.10.1",
     "axios": "^1.2.1",
+    "dompurify": "^3.2.2",
     "leaflet": "^1.9.4",
     "ol": "^10.3.0",
     "pinia": "^2.0.11",

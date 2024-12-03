@@ -19,7 +19,7 @@ import { storeToRefs } from 'pinia';
 import type { Device } from 'src/model/model';
 import Overlay from 'ol/Overlay';
 import { Coordinate } from 'ol/coordinate';
-
+import DOMPurify from 'dompurify';
 
 const deviceStore = useDeviceStore();
 const { devices, selectedDeviceId } = storeToRefs(deviceStore);
@@ -29,10 +29,12 @@ const map = shallowRef<Map | null>(null);
 const zoom = ref(6);
 const center = ref([-119.75, 37.25]); // Longitude, Latitude for OpenLayers
 
+const DEFAULT_ICON_PREFIX = 'raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-';
+const DEFAULT_ICON_URL = `https://${DEFAULT_ICON_PREFIX}blue.png`;
+
+
 const defaultIcon = new Icon({
-	src: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-	width: 48,
-	height: 48
+	src: DEFAULT_ICON_URL, // Use the constant here
 });
 
 const createMarkers = () => {
@@ -47,21 +49,52 @@ const createMarkers = () => {
 		features: features
 	});
 
-	const vectorLayer = new VectorLayer({
-		source: vectorSource,
-		style: feature => {
-			const device: Device = feature.get('device');
-			const icon = device.iconUrl ? new Icon({
-				src: device.iconUrl,
-				width: 48,
-				height: 48
-			}) : defaultIcon;
+    const vectorLayer = new VectorLayer({
+        source: vectorSource,
+        style: feature => {
+            const device: Device = feature.get('device');
+            let iconUrl = device.iconUrl;
 
-			return new Style({
-				image: icon
-			});
-		}
-	});
+            if (iconUrl && iconUrl.startsWith(DEFAULT_ICON_PREFIX)) {
+                iconUrl = `https://${iconUrl}`;
+            }
+
+            if (iconUrl) {
+                // Create a temporary image to get the natural dimensions
+                const img = new Image();
+                img.src = iconUrl;
+                
+                // Calculate scale to maintain aspect ratio within max dimensions
+                const maxSize = 96;
+                let width = img.width;
+                let height = img.height;
+                
+                if (width > maxSize || height > maxSize) {
+                    const ratio = width / height;
+                    if (width > height) {
+                        width = maxSize;
+                        height = maxSize / ratio;
+                    } else {
+                        height = maxSize;
+                        width = maxSize * ratio;
+                    }
+                }
+
+                return new Style({
+                    image: new Icon({
+                        src: iconUrl,
+                        width: width,
+                        height: height
+                    })
+                });
+            }
+
+            // Use default icon if no custom icon is specified
+            return new Style({
+                image: defaultIcon
+            });
+        }
+    });
 
 	// Add click handler
 	map.value!.on('click', (event) => {
@@ -98,6 +131,7 @@ const popup = new Overlay({
 	offset: [0, -50]
 });
 
+
 const showPopup = (device: Device, coordinate: Coordinate) => {
 	const lonLat = toLonLat(coordinate);
 	const onlineStatus = device.online ?
@@ -106,6 +140,9 @@ const showPopup = (device: Device, coordinate: Coordinate) => {
 
 	const fuelPercent = device.latest_device_point?.device_state.fuel_percent || 0;
 	const fuelBarWidth = Math.min(Math.max(fuelPercent, 0), 100);
+	// Sanitize all user-provided data:
+	const displayName = DOMPurify.sanitize(device.display_name || '');
+    const deviceId = DOMPurify.sanitize(device.device_id || '');
 
 	popup.getElement()!.innerHTML = `
         <div style="
@@ -127,7 +164,7 @@ const showPopup = (device: Device, coordinate: Coordinate) => {
                     font-weight: 600;
                     color: #1f2937;
                 ">
-                    ${device.display_name}
+                    ${displayName}
                 </div>
                 <div style="
                     font-size: 14px;
@@ -145,7 +182,7 @@ const showPopup = (device: Device, coordinate: Coordinate) => {
                 color: #6b7280;
                 margin-bottom: 8px;
             ">
-                ID: ${device.device_id}
+                ID: ${deviceId}
             </div>
             
             <div style="
@@ -217,39 +254,39 @@ onMounted(() => {
 	map.value.addOverlay(popup); // Ensure popup is added to the map
 
 
-	createMarkers(); 
+	createMarkers();
 
 	// Watch selectedDeviceId
 	watch(selectedDeviceId, (newDeviceId) => {
-    if (newDeviceId && map.value) {
-        const selectedDevice = devices.value.find(device => device._id === newDeviceId);
-        if (selectedDevice && selectedDevice.latest_device_point) {
-            const coordinates = fromLonLat([
-                selectedDevice.latest_device_point.lng, 
-                selectedDevice.latest_device_point.lat
-            ]);
+		if (newDeviceId && map.value) {
+			const selectedDevice = devices.value.find(device => device._id === newDeviceId);
+			if (selectedDevice && selectedDevice.latest_device_point) {
+				const coordinates = fromLonLat([
+					selectedDevice.latest_device_point.lng,
+					selectedDevice.latest_device_point.lat
+				]);
 
-            // Animate both pan and zoom
-            map.value.getView().animate(
-                {
-                    center: coordinates,
-                    duration: 1000
-                },
-                {
-                    zoom: 13, 
-                    duration: 500
-                },
-                () => {
-                    // Show popup after animation completes
-                    showPopup(selectedDevice, coordinates);
-                }
-            );
-        }
-    } else {
-        // Hide popup when no device is selected
-        popup.setPosition(undefined);
-    }
-});
+				// Animate both pan and zoom
+				map.value.getView().animate(
+					{
+						center: coordinates,
+						duration: 1000
+					},
+					{
+						zoom: 13,
+						duration: 500
+					},
+					() => {
+						// Show popup after animation completes
+						showPopup(selectedDevice, coordinates);
+					}
+				);
+			}
+		} else {
+			// Hide popup when no device is selected
+			popup.setPosition(undefined);
+		}
+	});
 
 	// Watch devices for changes in visibility or other properties
 	watch(devices, () => {

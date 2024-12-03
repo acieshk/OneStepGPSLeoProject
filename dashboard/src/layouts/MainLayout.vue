@@ -19,7 +19,8 @@
 			</q-toolbar>
 		</q-header>
 
-		<q-drawer v-model="leftDrawerOpen" :width="drawerWidth" class="resizable-drawer" side="left" bordered>
+		<q-drawer v-model="leftDrawerOpen" :width="drawerWidth" class="resizable-drawer" side="left" bordered
+			:behavior="'desktop'" :breakpoint="500" :mini="false" :overlay="false">
 			<q-list>
 				<device-list />
 			</q-list>
@@ -55,12 +56,12 @@
 <script setup lang="ts">
 import DeviceList from 'components/deviceList.vue';
 import { storeToRefs } from 'pinia';
-import { useQuasar } from 'quasar';
+import { debounce, useQuasar } from 'quasar';
 import { apiService } from 'src/api/apiService';
 import { useDeviceStore } from 'src/stores/deviceStore';
 import { useUserStore } from 'src/stores/userStore';
 import { onMounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 defineOptions({
 	name: 'MainLayout'
@@ -108,41 +109,57 @@ const onConfirmRefreshDatabase = async () => {
 }
 
 const goToUserPage = () => {
-  router.push('/user'); // Navigate to the user page
+	router.push('/user'); // Navigate to the user page
 };
 
 /*
 	Drawer logic 
 */
 const leftDrawerOpen = ref(false);
-const drawerWidth = ref(300);
+const drawerWidth = ref(400);
 let isResizing = false;
 const minDrawerWidth = 200;
 
-function toggleLeftDrawer() {
-	console.log('open the drawer');
-	console.log(drawerWidth.value);
-	leftDrawerOpen.value = !leftDrawerOpen.value;
-	    // Set drawer width from user preferences when opening
-		if (leftDrawerOpen.value) {
-        	drawerWidth.value = userPreferences.value.DeviceListWidth; // Use .value to access ref
-    }
-}
+const getPreferredWidth = () => {
+	return userPreferences.value?.DeviceListWidth || 400; // fallback width of 400
+};
 
+// Update your toggleLeftDrawer function
+const toggleLeftDrawer = () => {
+	if (!leftDrawerOpen.value) {
+		drawerWidth.value = getPreferredWidth();
+	}
+	leftDrawerOpen.value = !leftDrawerOpen.value;
+
+	if (!leftDrawerOpen.value) {
+		debouncedUpdateWidth(drawerWidth.value);
+	}
+};
+
+
+const debouncedUpdateWidth = debounce((width: number) => {
+	userStore.setDeviceListWidth(width);
+}, 300);
+
+let initialWidth = 0;
 function startResizing(event: MouseEvent) {
 	isResizing = true;
 	const startX = event.clientX;
-	const startWidth = drawerWidth.value;
+	initialWidth = drawerWidth.value;
+	const maxWidth = window.innerWidth * 0.8;
 
 	const onMouseMove = (moveEvent: MouseEvent) => {
 		if (!isResizing) return;
 		const deltaX = moveEvent.clientX - startX;
-		drawerWidth.value = Math.max(minDrawerWidth, startWidth + deltaX);
+		drawerWidth.value = Math.min(
+			Math.max(minDrawerWidth, initialWidth + deltaX),
+			maxWidth
+		);
 	};
 
 	const onMouseUp = () => {
 		isResizing = false;
-		userStore.setDeviceListWidth(drawerWidth.value);
+		debouncedUpdateWidth(drawerWidth.value);
 		document.removeEventListener('mousemove', onMouseMove);
 		document.removeEventListener('mouseup', onMouseUp);
 	};
@@ -151,14 +168,32 @@ function startResizing(event: MouseEvent) {
 	document.addEventListener('mouseup', onMouseUp);
 }
 
-// Watch user loaded state
-watch(() => userStore.userLoaded, (userIsLoaded) => {
-	if (userIsLoaded && !leftDrawerOpen.value) {
-        drawerWidth.value = userPreferences.value.DeviceListWidth; 
-        leftDrawerOpen.value = true; // Directly set to true - no toggle
+const route = useRoute();
+// Add a watch for userPreferences to ensure drawer width stays in sync
+watch(() => userPreferences.value?.DeviceListWidth, (newWidth) => {
+    if (leftDrawerOpen.value && newWidth) {
+        drawerWidth.value = newWidth;
     }
-}, { immediate: true });
+});
 
+watch(
+    [() => userStore.userLoaded, () => route.path],
+    ([userIsLoaded, currentPath]) => {
+        const isMainPage = currentPath === '/' || currentPath === '/map';
+        if (userIsLoaded && isMainPage && !leftDrawerOpen.value) {
+            try {
+                drawerWidth.value = getPreferredWidth();
+                leftDrawerOpen.value = true;
+            } catch (error) {
+                console.error('Error setting drawer width:', error);
+                // Fallback to default width
+                drawerWidth.value = 400;
+                leftDrawerOpen.value = true;
+            }
+        }
+    },
+    { immediate: true }
+);
 
 onMounted(() => {
 	deviceStore.loadDevices();
@@ -169,13 +204,19 @@ onMounted(() => {
 .page-title {
 	cursor: pointer;
 }
+
 .page-container {
 	height: 100vh;
+}
+
+.q-drawer {
+    transition: transform 0.3s ease;
 }
 
 .resizable-drawer {
 	position: relative;
 	overflow: hidden;
+	transition: width 0.3s ease;
 }
 
 .resize-handle {

@@ -324,7 +324,7 @@ func createCollectionIfNotExists(db *mongo.Database, collectionName string) erro
 
 func handleIconUpload(c *gin.Context, h *Handlers) {
 	// Add logging at the start
-	log.Printf("Starting icon upload for device ID: %s", c.Param("id"))
+	log.Printf("Starting icon upload/remove for device ID: %s", c.Param("id"))
 
 	deviceIDStr := c.Param("id")
 	deviceID, err := primitive.ObjectIDFromHex(deviceIDStr)
@@ -348,6 +348,37 @@ func handleIconUpload(c *gin.Context, h *Handlers) {
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
+	}
+
+	// Check for the "remove" query parameter
+	removeIcon := c.Query("remove") == "true"
+
+	if removeIcon {
+		log.Println("Removing icon...")
+
+		// Remove the icon file
+		iconDir := "./icons"
+		filename := fmt.Sprintf("%s.png", deviceID.Hex())
+		filepath := filepath.Join(iconDir, filename)
+
+		if err := os.Remove(filepath); err != nil && !os.IsNotExist(err) {
+			log.Printf("Error removing icon file: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove icon file"})
+			return
+		}
+
+		// Update database to remove iconUrl
+		update := bson.M{"$unset": bson.M{"iconUrl": ""}} // Use $unset to remove the field
+		result, err := collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			log.Printf("Error updating database (remove): %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove device icon URL"})
+			return
+		}
+
+		log.Printf("Database update result (remove): %+v", result)
+		c.JSON(http.StatusOK, gin.H{"message": "Icon removed successfully"})
+		return // Important: Return here to prevent the file upload logic from executing
 	}
 
 	file, header, err := c.Request.FormFile("file")

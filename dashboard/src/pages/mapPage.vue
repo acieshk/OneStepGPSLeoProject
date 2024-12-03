@@ -35,6 +35,7 @@ const DEFAULT_ICON_URL = `https://${DEFAULT_ICON_PREFIX}blue.png`;
 
 const defaultIcon = new Icon({
 	src: DEFAULT_ICON_URL, // Use the constant here
+	width: 36
 });
 
 const createMarkers = () => {
@@ -65,7 +66,7 @@ const createMarkers = () => {
                 img.src = iconUrl;
                 
                 // Calculate scale to maintain aspect ratio within max dimensions
-                const maxSize = 96;
+                const maxSize = 36;
                 let width = img.width;
                 let height = img.height;
                 
@@ -83,8 +84,7 @@ const createMarkers = () => {
                 return new Style({
                     image: new Icon({
                         src: iconUrl,
-                        width: width,
-                        height: height
+                        width: 36,
                     })
                 });
             }

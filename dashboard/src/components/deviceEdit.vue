@@ -118,11 +118,8 @@ const isDisabled = (node: TreeNode) => {
 const saveDevice = async () => {
 	try {
 		isSaving.value = true;
-		console.log('Attempting to save device...');
 		if (editingDevice.value) {
-			console.log('Editing device:', editingDevice.value);
 			await deviceStore.updateDevice(editingDevice.value);
-			console.log('Device saved successfully!');
 			router.push('/');
 		} else {
 			console.error('Editing device is null or undefined.');
@@ -226,8 +223,6 @@ const addArrayItem = (node: TreeNode) => {
 };
 
 const removeArrayItem = (node: TreeNode) => {
-	console.log('Attempting to remove array item');
-	console.log('Node to remove:', node);
 
 	// Find the parent array node manually
 	const findParentArrayNode = (nodes: TreeNode[]): TreeNode | null => {
@@ -244,7 +239,6 @@ const removeArrayItem = (node: TreeNode) => {
 	};
 
 	const parentNode = findParentArrayNode(deviceNodes.value);
-	console.log('Parent node found:', parentNode);
 
 	if (!editingDevice.value || !parentNode) {
 		console.log('Cannot remove item - no parent found');
@@ -253,7 +247,6 @@ const removeArrayItem = (node: TreeNode) => {
 
 	// Extract the array path
 	const arrayPathParts = parentNode._id.split('.');
-	console.log('Array path parts:', arrayPathParts);
 
 	// Retrieve the current array
 	const currentArray = arrayPathParts.reduce((acc: Record<string, unknown>, key) => {
@@ -265,8 +258,6 @@ const removeArrayItem = (node: TreeNode) => {
 		return acc[key] as Record<string, unknown>;
 	}, editingDevice.value as Record<string, unknown>);
 
-	console.log('Current array before removal:', currentArray);
-
 	if (Array.isArray(currentArray)) {
 		// Extract the actual index from the node's label
 		const indexMatch = node.label.match(/\[(\d+)\]/);
@@ -276,11 +267,9 @@ const removeArrayItem = (node: TreeNode) => {
 		}
 
 		const indexToRemove = parseInt(indexMatch[1], 10);
-		console.log('Index to remove:', indexToRemove);
 
 		// Remove the item at the specified index
 		currentArray.splice(indexToRemove, 1);
-		console.log('Array after splice:', currentArray);
 
 		// Update the device property to trigger reactivity
 		deviceStore.updateDeviceProperty(arrayPathParts, currentArray);
@@ -318,8 +307,6 @@ watch(deviceLoaded, (loaded) => {
 		const deviceIdFromRoute = route.params.id;
 		const deviceId = Array.isArray(deviceIdFromRoute) ? deviceIdFromRoute[0] : deviceIdFromRoute; // Take the first element if it's an array
 		deviceStore.setEditingDeviceByID(deviceId as string); // Ensure type safety with type assertion
-		console.log('device loaded in device edit');
-
 	}
 }, { immediate: true });
 
@@ -334,9 +321,7 @@ watch(
     if (updatingDevice) return; // Prevent recursion
     updatingDevice = true;
     if (newDevice) {
-      console.log('new device');
       deviceNodes.value = objectToTree(newDevice);
-
       // Only set default icon if iconUrl is missing or is the default
       if (!newDevice.iconUrl || newDevice.iconUrl === 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png') {
         deviceStore.updateDeviceProperty(['iconUrl'], DEFAULT_ICON_URL); // This triggers reactivity

@@ -37,8 +37,6 @@ export const useUserStore = defineStore('user', () => {
 
 	async function saveUserPreferences() {
         try {
-			console.log('Saving preferences');
-			console.log(userPreferences.value);
             const updatedPreferences = await apiService.saveUserPreferences(userPreferences.value);
             // Update the store with the saved preferences (if the API returns them)
 			userPreferences.value = updatedPreferences; // Assuming server sends back updated preferences

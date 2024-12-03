@@ -84,7 +84,6 @@ const formatURL = (url: string | null | undefined) => {
 		console.warn(`formatURL received a non-string value: ${typeof url}, ${url}`);
 		return '';
 	}
-	console.log(url);
 	if (url.startsWith(DEFAULT_ICON_PREFIX)) { // Check if it's a default icon
 		return `https://${url}`; // Add https if default icon
 	} else if (url.startsWith('http://') || url.startsWith('https://')) {

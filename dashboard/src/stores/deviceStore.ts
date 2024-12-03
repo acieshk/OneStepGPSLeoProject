@@ -42,7 +42,6 @@ export const useDeviceStore = defineStore('device', () => {
 	}
 
 	async function updateDevice(updatedDevice: Device) {
-		console.log('Updating device');
 		console.log(updatedDevice);
 		if (!editingDevice.value) {
 			console.error('No device to save. editingDevice is null.');
@@ -59,11 +58,7 @@ export const useDeviceStore = defineStore('device', () => {
 				// Update the device in the array using splice to maintain reactivity:
 				devices.value.splice(deviceIndex, 1, updatedDevice);
 			}
-
-			// Call API to update
 			await apiService.updateDevice(updatedDevice._id, updatedDevice);
-			console.log('Device updated successfully');
-			console.log(devices);
 		}
 		catch (error) {
 			console.error('Error updating device in store:', error);
@@ -173,12 +168,10 @@ export const useDeviceStore = defineStore('device', () => {
 
     async function updateIcon(deviceId: string, iconFile: File | null, iconPath: string | null) {
         try {
-			console.log('update icon');
             deviceLoading.value = true;
 
             if (iconFile) {  // Handle file upload
                 const response = await apiService.uploadDeviceIcon(deviceId, iconFile);
-				console.log(JSON.stringify(response));
 				const newIconURL = response.iconUrl; // or however your API returns the URL
 
 				if (!newIconURL) {
@@ -192,7 +185,6 @@ export const useDeviceStore = defineStore('device', () => {
 					devices.value[deviceIndex].iconUrl = newIconURL;
                     devices.value = [...devices.value]; // Trigger reactivity for devices array
 				}
-                console.log('Icon uploaded:', newIconURL);
 
             } else if (iconPath) { // Update existing Device
 				const deviceIndex = devices.value.findIndex(d => d._id === deviceId);
@@ -207,9 +199,7 @@ export const useDeviceStore = defineStore('device', () => {
 					devices.value[deviceIndex].iconUrl = '';
                     devices.value = [...devices.value]; // Trigger reactivity for devices array
 				}
-				const response = await apiService.removeDeviceIcon(deviceId);
-				console.log(JSON.stringify(response));
-				console.log('Icon removed');
+				await apiService.removeDeviceIcon(deviceId);
 			}
 
         } catch (error) {

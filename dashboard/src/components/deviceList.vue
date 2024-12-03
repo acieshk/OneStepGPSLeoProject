@@ -266,7 +266,6 @@ const goToEditDevice = (device: Device) => {
 */
 const handleVisibilityToggle = (device: Device) => {
 	// Update the device's visibility in the store and Map:
-	console.log('Update Visibility');
 	deviceStore.toggleDeviceVisibility(device._id);	//update visibility Map for the icons
 };
 

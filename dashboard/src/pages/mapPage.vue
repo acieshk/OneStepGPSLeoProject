@@ -98,7 +98,6 @@ const createMarkers = () => {
 
 	// Add click handler
 	map.value!.on('click', (event) => {
-		console.log('marker clicked');
 		map.value!.forEachFeatureAtPixel(event.pixel, (feature, layer) => {
 			if (layer === vectorLayer) {
 				const device: Device = feature.get('device');

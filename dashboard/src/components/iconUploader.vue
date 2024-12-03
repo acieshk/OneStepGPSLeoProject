@@ -136,6 +136,7 @@ const removeIcon = () => {
 	try {
 		deviceStore.updateIcon(editingDevice.value._id, null, '').then(() => {
 			iconFile.value = null; // Clear the file input *after* successful API call
+			selectedDefaultColor.value = 'blue';
 		});
 
 	} catch (error) {
@@ -145,8 +146,16 @@ const removeIcon = () => {
 
 const showDefaultIconSelector = computed(() => {
 	if (!editingDevice.value) return false; // Hide if no device is being edited
-	return !editingDevice.value.iconUrl || editingDevice.value.iconUrl === DEFAULT_ICON_URL;
+	console.log(editingDevice.value.iconUrl);
+	return !editingDevice.value.iconUrl || isDefaultIcon(editingDevice.value.iconUrl);
 });
+
+const isDefaultIcon = (iconUrl:string) => {
+	console.log(iconUrl);
+	console.log((iconUrl.startsWith(DEFAULT_ICON_PREFIX)));
+	return (iconUrl.startsWith(DEFAULT_ICON_PREFIX)) || iconUrl.startsWith('https://' + DEFAULT_ICON_PREFIX)
+	|| iconUrl == '';
+};
 
 // Watch editingDevice to reset icon controls when device changes
 watch(editingDevice, (newDevice) => {

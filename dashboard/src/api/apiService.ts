@@ -41,8 +41,6 @@ class ApiService {
 			}
 			const data = await response.json();
 			const devices = data.result_list;
-
-			console.log(devices);
 			return devices as Device[];
 		} catch (error) {
 			console.error('Error fetching devices:', error);
@@ -69,7 +67,6 @@ class ApiService {
 	}
 
 	async updateDevice(_id: string, updatedDevice: Device): Promise<Device> {
-		console.log('update Device API');
 		try {
 			const response = await fetch(`${config.api.baseUrl}:${config.api.port}${config.api.endpoints.updateDevice}/${_id}`, { // Use correct endpoint and deviceId
 				method: 'PUT', // Or PATCH if appropriate for your API
@@ -96,7 +93,6 @@ class ApiService {
 	async getUserPreferences(userId: string): Promise<UserPreferences> {
 		try {
 			const response = await fetch(`${config.api.baseUrl}:${config.api.port}${config.api.endpoints.userPreferences}/${userId}`);
-			console.log(`${config.api.baseUrl}:${config.api.port}${config.api.endpoints.userPreferences}/${userId}`);
 			if (!response.ok) {
 				if (response.status === 404) {
 					// Create default preferences for new users

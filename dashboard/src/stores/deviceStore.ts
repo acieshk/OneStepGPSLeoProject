@@ -96,7 +96,6 @@ export const useDeviceStore = defineStore('device', () => {
 			// Trigger reactivity by replacing the devices array.  Deep copy isn't always needed, but better to be safe for arrays
 			devices.value = [...devices.value];
         }
-		// setMapIconVisibility(_id, devices.value[deviceIndex].visible);
     }
 
 	function setMapIconVisibility(_id: string, visibility: boolean) {
@@ -215,7 +214,6 @@ export const useDeviceStore = defineStore('device', () => {
 
         } catch (error) {
 			console.error('Error updating icon:', error);
-            // Handle error (e.g., display error message)
         } finally {
             deviceLoading.value = false;
         }

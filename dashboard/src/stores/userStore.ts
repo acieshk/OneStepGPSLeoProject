@@ -14,26 +14,23 @@ export const useUserStore = defineStore('user', () => {
 	const userId = ref('default_user');
 	const userPreferences = ref<UserPreferences>({
 		rowPerPage: 20,
-		DeviceListWidth: 200, // Default width in pixels
+		DeviceListWidth: 400, 
 		unit: 'original',
 	});
 
-	async function loadUser() {  // Takes userId as argument
+	async function loadUser() {  
 		if (userLoading.value) return;
 		userLoading.value = true;
         try {
             const preferences = await apiService.getUserPreferences('default_user'); // the user is default_user right now
-            userPreferences.value = preferences; // Update store state
+            userPreferences.value = preferences; 
 			userLoaded.value = true; 
 			userLoading.value = false; 
-			console.log('User loaded');
-			console.log(preferences);
         } catch (error) {
-            // Use Quasar notification for error display
             $q.notify({
-                type: 'negative', // Use a negative type for errors
-                message: 'Error loading user preferences. Please try again later.', // User-friendly message
-                position: 'top', // Or other preferred position
+                type: 'negative', 
+                message: 'Error loading user preferences. Please try again later.',
+                position: 'top', 
             });
         }
     }

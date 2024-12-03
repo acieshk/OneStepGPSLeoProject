@@ -52,7 +52,7 @@ import { useRouter } from 'vue-router';
 
 
 const deviceStore = useDeviceStore();
-const { deviceLoaded, devices, selectedDeviceId } = storeToRefs(deviceStore);
+const { devices, selectedDeviceId } = storeToRefs(deviceStore);
 const userStore = useUserStore();
 const { userPreferences } = storeToRefs(userStore);
 const selectedRow = ref<Device | null>(null);
@@ -270,11 +270,10 @@ const handleVisibilityToggle = (device: Device) => {
 	deviceStore.toggleDeviceVisibility(device._id);	//update visibility Map for the icons
 };
 
-
-watch(deviceLoaded, () => {
-	if (deviceLoaded)
-		console.log('Devices loaded:', devices.value);
-}, { immediate: true });
+// watch(deviceLoaded, () => {
+// 	if (deviceLoaded)
+// 		console.log('Devices loaded:', devices.value);
+// }, { immediate: true });
 
 // Watch selectedDeviceId from the store
 watch(selectedDeviceId, (newSelectedDeviceId) => {

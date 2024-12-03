@@ -93,6 +93,7 @@ const onConfirmRefreshDatabase = async () => {
 		await deviceStore.loadDevices();
 
 		showRefreshDialog.value = false;
+		router.push('/');
 		$q.notify({
 			type: 'positive',
 			message: 'Database refreshed successfully!',
@@ -131,9 +132,9 @@ const toggleLeftDrawer = () => {
 	}
 	leftDrawerOpen.value = !leftDrawerOpen.value;
 
-	if (!leftDrawerOpen.value) {
-		debouncedUpdateWidth(drawerWidth.value);
-	}
+	// if (!leftDrawerOpen.value) {
+	// 	debouncedUpdateWidth(drawerWidth.value);
+	// }
 };
 
 

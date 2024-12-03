@@ -48,6 +48,9 @@
 import { storeToRefs } from 'pinia';
 import { useDeviceStore } from 'src/stores/deviceStore';
 import { computed, ref, watch } from 'vue';
+import { useQuasar } from 'quasar'; 
+
+const $q = useQuasar();
 const deviceStore = useDeviceStore();
 const { editingDevice } = storeToRefs(deviceStore);
 
@@ -135,8 +138,12 @@ const removeIcon = () => {
 	if (!editingDevice.value || !editingDevice.value._id) return;
 	try {
 		deviceStore.updateIcon(editingDevice.value._id, null, '').then(() => {
-			iconFile.value = null; // Clear the file input *after* successful API call
+			iconFile.value = null; 
 			selectedDefaultColor.value = 'blue';
+			$q.notify({ 
+				type: 'positive',
+				message: 'Icon removed successfully!'
+			});
 		});
 
 	} catch (error) {

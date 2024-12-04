@@ -45,8 +45,6 @@ type Config struct {
 	UserCollectionName   string `json:"user_collection_name"`
 	APIKey               string `json:"api_key"` // API key for external API access
 	APIURL               string `json:"api_url"` // Base URL for the API
-	FrontendURL          string `json:"frontend_url"`
-	FrontendPort         string `json:"frontend_port"`
 }
 
 // Handlers for passing dependencies
@@ -78,6 +76,15 @@ func loadConfig(filename string) (Config, error) {
 	}
 
 	err = json.Unmarshal(bytes, &config)
+	if err != nil {
+		return config, err
+	}
+
+	// Validate APIKey after loading
+	if config.APIKey == "" {
+		return config, fmt.Errorf("APIKey is missing in config.json")
+	}
+
 	return config, err
 }
 

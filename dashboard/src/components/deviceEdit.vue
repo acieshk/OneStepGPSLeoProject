@@ -47,7 +47,7 @@
 							{ label: 'True', value: true },
 							{ label: 'False', value: false }
 						]" dense outlined options-dense emit-value map-options :display-value="prop.node.value ? 'true' : 'false'"
-						style="min-width: 100px" @update:model-value="val => updateNodeValue(prop.node, null, val)" />
+						style="min-width: 100px" @blur="updateNodeValue(prop.node, null, prop.node.value)" />
 
 					<!-- Handle DateTime type -->
 					<q-input v-else-if="isDateValue(prop.node.value)" :disable="isDisabled(prop.node)"
@@ -56,7 +56,7 @@
 					<!-- Handle String/Number type -->
 					<q-input v-else-if="prop.node.value !== undefined" :disable="isDisabled(prop.node)"
 						v-model="prop.node.value" dense outlined
-						@change="updateNodeValue(prop.node, null, prop.node.value)" />
+						@blur="updateNodeValue(prop.node, null, prop.node.value)" />
 				</div>
 			</template>
 		</q-tree>
@@ -373,5 +373,10 @@ onMounted(async () => {
 
 .hide {
 	display: none;
+}
+
+.modified-field {
+	background-color: #fff3e0;
+	border-color: #fb8c00 !important;
 }
 </style>

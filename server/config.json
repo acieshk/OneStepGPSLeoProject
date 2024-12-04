@@ -8,7 +8,5 @@
     "device_collection_name": "device_data",
     "user_collection_name": "user_preferences", 
     "api_url": "https://track.onestepgps.com/v3/api/public/device?latest_point=true&api-key=",
-    "api_key": "oUFJLAi7YeGOgFyAr8d4_TkX_2GpFJnJi64xUem_d2k",
-    "frontend_url": "http://localhost",
-    "frontend_port": "5173"
+    "api_key": "oUFJLAi7YeGOgFyAr8d4_TkX_2GpFJnJi64xUem_d2k"
 }

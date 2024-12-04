@@ -76,7 +76,7 @@ go run server.go
 
 ### 3. Frontend (Vue.js)
 
-#### Open a new command line. Navigate to the frontend directory:
+#### Open a new console. Navigate to the frontend directory:
 ```bash
 cd OneStepGPSLeoProject\dashboard
 ```

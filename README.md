@@ -55,6 +55,7 @@ Edit the config.json file in the server directory and configure the following se
   "api_url": "onestepgps_api_url",
   "api_key": "your_onestepgps_api_key"
 }
+
 ```
 Failed to load config: APIKey is missing in config.json
 exit status 1

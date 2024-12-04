@@ -53,13 +53,14 @@ Edit the config.json file in the server directory and configure the following se
   "device_collection_name": "your_device_collection_name",
   "user_collection_name": "your_user_preferences_collection",
   "api_url": "onestepgps_api_url",
-  "api_key": "your_onestepgps_api_key",
-  "frontend_url": "your_frontend_url",
-  "frontend_port": "your_frontend_port",
-  "mongodb_username": "your_mongodb_username",
-  "mongodb_password": "your_mongodb_password"
+  "api_key": "your_onestepgps_api_key"
 }
 ```
+Failed to load config: APIKey is missing in config.json
+exit status 1
+> [!CAUTION]  
+> If the API key is missing, the following error will occur:
+> ``` Failed to load config: APIKey is missing in config.json exit status 1 ```
 
 **Note**:  
 - You have to enter api_key as it is removed for security purpose.

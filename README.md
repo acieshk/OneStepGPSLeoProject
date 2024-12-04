@@ -67,7 +67,7 @@ exit status 1
 - You have to enter api_key as it is removed for security purpose.
 - Replace the placeholder values with your actual settings.  
 - If you're running MongoDB locally without authentication, you can omit the `mongodb_username` and `mongodb_password` fields.
-
+- The server will automatically create a database with collections. You may change to a different database name.
 
 #### Run the server:
 ```bash

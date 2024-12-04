@@ -52,8 +52,7 @@
 					<!-- Handle DateTime type -->
 					<q-input v-else-if="isDateValue(prop.node.value)" :disable="isDisabled(prop.node)"
 						v-model="prop.node.value" outlined dense
-						@change="updateNodeValue(prop.node, null, prop.node.value)" />
-
+						@blur="updateNodeValue(prop.node, null, prop.node.value)" />
 					<!-- Handle String/Number type -->
 					<q-input v-else-if="prop.node.value !== undefined" :disable="isDisabled(prop.node)"
 						v-model="prop.node.value" dense outlined
@@ -72,6 +71,7 @@ import { nextTick, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { PrimitiveValue, type DeviceValue, useDeviceStore } from 'src/stores/deviceStore';
 import { QInput, QTree } from 'quasar';
+
 
 interface TreeNode {
 	label: string;
@@ -286,18 +286,19 @@ const removeArrayItem = (node: TreeNode) => {
 		}
 	}
 };
+/*
+	Date handling
+*/
 
+// Update the isDateValue function
 const isDateValue = (value: unknown): boolean => {
 	if (typeof value === 'string') {
-		try {
-			const parsed = new Date(value);
-			return !isNaN(parsed.getTime());
-		} catch {
-			return false;
-		}
+		const dateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
+		return dateRegex.test(value);
 	}
-	return value instanceof Date && !isNaN(value.getTime());
+	return false;
 };
+
 
 watch(deviceLoaded, (loaded) => {
 	if (!loaded) return;
@@ -316,24 +317,24 @@ const DEFAULT_ICON_URL = 'https://raw.githubusercontent.com/pointhi/leaflet-colo
 let updatingDevice = false;
 
 watch(
-  editingDevice,
-  (newDevice) => {
-    if (updatingDevice) return; // Prevent recursion
-    updatingDevice = true;
-    if (newDevice) {
-      deviceNodes.value = objectToTree(newDevice);
-      // Only set default icon if iconUrl is missing or is the default
-      if (!newDevice.iconUrl || newDevice.iconUrl === 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png') {
-        deviceStore.updateDeviceProperty(['iconUrl'], DEFAULT_ICON_URL); // This triggers reactivity
-      }
-    } else {
-      deviceNodes.value = []; // Clear nodes if editingDevice is null
-    }
-    nextTick(() => {
-      updatingDevice = false; // Reset the flag after reactivity settles
-    });
-  },
-  { immediate: true }
+	editingDevice,
+	(newDevice) => {
+		if (updatingDevice) return; // Prevent recursion
+		updatingDevice = true;
+		if (newDevice) {
+			deviceNodes.value = objectToTree(newDevice);
+			// Only set default icon if iconUrl is missing or is the default
+			if (!newDevice.iconUrl || newDevice.iconUrl === 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png') {
+				deviceStore.updateDeviceProperty(['iconUrl'], DEFAULT_ICON_URL); // This triggers reactivity
+			}
+		} else {
+			deviceNodes.value = []; // Clear nodes if editingDevice is null
+		}
+		nextTick(() => {
+			updatingDevice = false; // Reset the flag after reactivity settles
+		});
+	},
+	{ immediate: true }
 );
 
 // When initializing the tree, add parent references

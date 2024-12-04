@@ -49,9 +49,9 @@ Edit the config.json file in the server directory and configure the following se
   "server_port": "8080",
   "mongodb_url": "your_mongodb_url",
   "mongodb_port": "27017",
-  "database_name": "your_database_name",
-  "device_collection_name": "your_device_collection_name",
-  "user_collection_name": "your_user_preferences_collection",
+  "database_name": "onestepgps",  
+  "device_collection_name": "device_data",
+  "user_collection_name": "user_preferences", 
   "api_url": "onestepgps_api_url",
   "api_key": "your_onestepgps_api_key"
 }

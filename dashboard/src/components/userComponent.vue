@@ -4,9 +4,6 @@
 			<q-toolbar-title>User Preferences</q-toolbar-title>
 		</q-toolbar>
 		<div class="q-gutter-md">
-			<q-select style="display:none" v-model="userPreferences.rowPerPage" :options="[20, 50, 100]" label="Rows per page" emit-value
-				map-options />
-
 			<q-input v-model="userPreferences.DeviceListWidth" label="Device List Width (px)" disable type="number" />
 
 			<div>Unit:</div>
@@ -23,7 +20,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { QForm, QSelect, QInput, QRadio, QBtn, useQuasar } from 'quasar';
+import { QForm, QInput, QRadio, QBtn, useQuasar } from 'quasar';
 import { useUserStore } from 'src/stores/userStore';
 import { storeToRefs } from 'pinia';
 

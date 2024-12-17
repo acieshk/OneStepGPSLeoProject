@@ -30,25 +30,7 @@ export interface Device {
 	integration_meta: {
 		onestepgps: string;
 	};
-	latest_device_point: {
-		conn_data: {
-			device_id: string;
-		};
-		device_point_detail: {
-			external_volt: number;
-		};
-		device_state: {
-			fuel_percent: number;
-			odometer: {
-				unit: string,
-				value: number,
-			},
-		};
-		dt_tracker: string | Date;
-		lat: number;
-		lng: number;
-		speed: number;
-	} | null;
+	latest_device_point: DevicePoint | null;
 	name: string;
 	online: boolean;
 	parent_device_id: string;
@@ -61,8 +43,33 @@ export interface Device {
 	[key: string]: string | number | boolean | Date | object | undefined | null;
 }
 
+export interface DevicePoint {
+	conn_data: {
+		device_id: string;
+	};
+	device_point_detail: {
+		external_volt: number;
+	};
+	device_state: {
+		fuel_percent: number;
+		odometer: {
+			unit: string,
+			value: number,
+		},
+	};
+	dt_tracker: string | Date;
+	lat: number;
+	lng: number;
+	speed: number;
+}
+
+export interface DevicePointDetail {
+    speed?: { value: number; unit: string; display: string };
+}
+
 export interface UserPreferences {
-    rowPerPage: number;
+	version: number;
+    userID: string;
     DeviceListWidth: number; 
     unit: 'original' | 'metric' | 'imperial';
 }

@@ -1,5 +1,5 @@
 <template>
-	<q-table title="Devices" :rows="devices" :columns="columns" v-model:pagination.sync="pagination"
+	<q-table title="Devices" :rows="devices" :columns="columns" 
 		:rows-per-page-options="[10, 25, 50, 100, 0]" row-key="_id" @row-click="handleRowClick"
 		@mouseover="handleRowMouseover" @mouseout="handleRowMouseout">
 		<template v-slot:header-cell-visible="props">
@@ -56,13 +56,6 @@ const { devices, selectedDeviceId } = storeToRefs(deviceStore);
 const userStore = useUserStore();
 const { userPreferences } = storeToRefs(userStore);
 const selectedRow = ref<Device | null>(null);
-const pagination = ref({
-	page: 1,
-	rowsPerPage: userPreferences.value.rowPerPage, 
-	rowPerPageOptions: [10, 25, 50, 100, 0]
-});
-
-
 
 const columns = computed(() => {
 	if (!devices.value || devices.value.length === 0) {

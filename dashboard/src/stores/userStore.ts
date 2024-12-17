@@ -11,9 +11,10 @@ export const useUserStore = defineStore('user', () => {
 	const $q = useQuasar();
 	const userLoaded = ref(false);
 	const userLoading = ref(false);
-	const userId = ref('default_user');
+	const userID = ref('default_user');
 	const userPreferences = ref<UserPreferences>({
-		rowPerPage: 20,
+		userID: 'default_user',
+		version: 0,
 		DeviceListWidth: 400, 
 		unit: 'original',
 	});
@@ -22,7 +23,7 @@ export const useUserStore = defineStore('user', () => {
 		if (userLoading.value) return;
 		userLoading.value = true;
         try {
-            const preferences = await apiService.getUserPreferences('default_user'); // the user is default_user right now
+            const preferences = await apiService.getUserPreferences(userID.value); // the user is default_user right now
             userPreferences.value = preferences; 
 			userLoaded.value = true; 
 			userLoading.value = false; 
@@ -50,11 +51,6 @@ export const useUserStore = defineStore('user', () => {
         }
     }
 
-	function setRowPerPage(rowPerPage: number) {
-		userPreferences.value.rowPerPage = rowPerPage
-		saveUserPreferences()
-	}
-
 	function setDeviceListWidth(DeviceListWidth: number) {
 		userPreferences.value.DeviceListWidth = DeviceListWidth
 		saveUserPreferences()
@@ -74,14 +70,13 @@ export const useUserStore = defineStore('user', () => {
 
 	return {
 		// states
-		userId,
+		userID,
 		userPreferences,
 		userLoading,
 		userLoaded,
 		// actions
 		loadUser,
 		saveUserPreferences,
-		setRowPerPage,
 		setDeviceListWidth,
 		setUnit,
 		ensurePreferencesLoaded,

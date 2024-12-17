@@ -73,6 +73,24 @@ exit status 1
 ```bash
 go run server.go
 ```
+## Running the Mock Server (Optional)
+
+A mock server is provided for development and testing purposes. This allows you to run the dashboard and test its functionality even when the actual OneStepGPS API is unavailable or when you want to simulate specific scenarios or data mutations.  Benefits of using the mock server include:
+
+* **Offline Development:**  Develop and test the dashboard without relying on a connection to the real OneStepGPS API.
+* **Controlled Testing:** Simulate various data scenarios, including edge cases and error conditions, to thoroughly test the dashboard's behavior.
+* **Data Mutation:** The mock server can randomly mutate device data, allowing you to test how the dashboard handles dynamic updates and changes.
+
+To run the mock server, use the following command instead:
+
+```bash
+go run server.go -mock -mutateChance=0.3 -mutateDevice=2
+```
+
+-mock: Enables mock server mode. Required to use mock server.
+-mutateChance=0.3 (optional): Sets the probability of data mutation to 30%. The value should be between 0.0 and 1.0. Defaults to 0.3.
+-mutateDevice=2 (optional): Sets the number of devices to mutate if a mutation occurs. Defaults to 2.
+The mock server will start on the port specified in your config.json file, or port 8081 if not configured. 
 
 ### 3. Frontend (Vue.js)
 

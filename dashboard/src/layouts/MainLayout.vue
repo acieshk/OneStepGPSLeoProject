@@ -197,7 +197,7 @@ watch(
 );
 
 onMounted(() => {
-	deviceStore.loadDevices();
+	deviceStore.startPolling();
 	userStore.loadUser();
 });
 </script>

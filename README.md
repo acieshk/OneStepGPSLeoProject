@@ -49,9 +49,9 @@ Edit the config.json file in the server directory and configure the following se
   "server_port": "8080",
   "mongodb_url": "your_mongodb_url",
   "mongodb_port": "27017",
-  "database_name": "your_database_name",
-  "device_collection_name": "your_device_collection_name",
-  "user_collection_name": "your_user_preferences_collection",
+  "database_name": "onestepgps",  
+  "device_collection_name": "device_data",
+  "user_collection_name": "user_preferences", 
   "api_url": "onestepgps_api_url",
   "api_key": "your_onestepgps_api_key"
 }
@@ -67,7 +67,7 @@ exit status 1
 - You have to enter api_key as it is removed for security purpose.
 - Replace the placeholder values with your actual settings.  
 - If you're running MongoDB locally without authentication, you can omit the `mongodb_username` and `mongodb_password` fields.
-
+- The server will automatically create a database with collections. You may change to a different database name.
 
 #### Run the server:
 ```bash
@@ -94,7 +94,7 @@ The mock server will start on the port specified in your config.json file, or po
 
 ### 3. Frontend (Vue.js)
 
-#### Open a new command line. Navigate to the frontend directory:
+#### Open a new console. Navigate to the frontend directory:
 ```bash
 cd OneStepGPSLeoProject\dashboard
 ```

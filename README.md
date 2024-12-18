@@ -10,7 +10,8 @@ This project provides a dashboard to visualize and manage device data fetched fr
 - **List View**: Presents device data in a sortable and filterable list.  
 - **Device Icon Upload**: Allows users to upload custom icons for each device.  
 - **Device Details Editing**: Provides an treeview to edit device properties. 
-- **Database Refresh**: Enables manual refresh of device data from the OneStepGPS API.  
+- **Database Refresh**: Enables manual refresh of device data from the OneStepGPS API. 
+- **Mock Server**: For testing purposes. It speeds up development when the device is not updating. 
 - **User Preferences**: Lets users set distance units (km/mi) and save width of the left side drawer.
 
 ---
@@ -75,16 +76,16 @@ go run server.go
 ```
 ## Running the Mock Server (Optional)
 
-A mock server is provided for development and testing purposes. This allows you to run the dashboard and test its functionality even when the actual OneStepGPS API is unavailable or when you want to simulate specific scenarios or data mutations.  Benefits of using the mock server include:
+A mock server is provided for development and testing purposes. This allows you to run the dashboard and test its functionality 
 
-* **Offline Development:**  Develop and test the dashboard without relying on a connection to the real OneStepGPS API.
-* **Controlled Testing:** Simulate various data scenarios, including edge cases and error conditions, to thoroughly test the dashboard's behavior.
-* **Data Mutation:** The mock server can randomly mutate device data, allowing you to test how the dashboard handles dynamic updates and changes.
+The mock server can randomly mutate device data, allowing you to test how the dashboard handles dynamic updates and changes.
+
+The data that will be mutated are: latitude, longitude, online
 
 To run the mock server, use the following command instead:
 
 ```bash
-go run server.go -mock -mutateChance=0.3 -mutateDevice=2
+go run main.go -mock -mutateDevice 4 -mutateChance 0.5
 ```
 
 -mock: Enables mock server mode. Required to use mock server.
@@ -117,7 +118,7 @@ npm run dev  # or yarn dev
    Open your web browser and navigate to `http://localhost:<your_frontend_port>` (replace `<your_frontend_port>` with your configured port).
 
 2. **Refresh Data**:  
-   Click the refresh button to fetch the latest device data from the OneStepGPS API.
+   Real time polling is supported.
 
 3. **View Devices**:  
    Use the map and list views to visualize and manage device data.
@@ -130,6 +131,9 @@ npm run dev  # or yarn dev
 
 6. **User Preferences**:  
    Use the settings icon to adjust distance units and dashboard layout preferences.
+
+7. **Concurrency**:
+  Handle situation where multiple clients are updating. 
 ---
 ## Lessons Learnt
 Transitioning from Angular to Vue for this project has been a significant learning experience for me. As a former Angular developer, I encountered several challenges while adapting to Vue's ecosystem. One of the major hurdles was navigating the various UI tools available. I found that some libraries lacked sufficient documentation and functionality, which hindered my progress. For instance, I initially used Element Plus for form components but had to switch to Quasar to better meet my needs. Similarly, I started with Leaflet for mapping but ultimately transitioned to OpenLayers for its enhanced capabilities.

@@ -104,16 +104,14 @@ class ApiService {
 		try {
 			const response = await fetch(url);
 			if (!response.ok) {
-				if (response.status === 404) { // Handle 404 (Not Found) - create default preferences
+				if (response.status === 404) { 
 					console.log('User preferences not found, creating default...')
-					const defaultPrefs: UserPreferences = { // Initialize with default values
+					const defaultPrefs: UserPreferences = { 
 						userId: userId,
 						version: 1, // Initialize version.
 						DeviceListWidth: 400,
 						unit: 'original',
 					};
-	
-					// Try to save default preferences. Log a warning or throw error here if you want different behavior.
 	
 					try {
 	
@@ -127,15 +125,8 @@ class ApiService {
 						return defaultPrefs; //Return defaultPrefs and continue
 					}
 				}
-	
-	
-	
 				throw await this.handleError(response)
-	
-	
 			}
-	
-	
 	
 			// Parse the response JSON and return as UserPreferences
 			const preferences = await response.json() as UserPreferences;
@@ -150,9 +141,7 @@ class ApiService {
 	}
 
 	async saveUserPreferences(preferences: UserPreferences): Promise<UserPreferences> {
-		const url = `${this.baseUrl}/api/users/${preferences.userId}/preferences`; // Use the correct URL structure with userID
-		console.log('Saving user preferences');
-		console.log(preferences);
+		const url = `${this.baseUrl}/api/users/${preferences.userId}/preferences`; 
 		try {
 			const response = await fetch(url, {
 				method: 'POST',

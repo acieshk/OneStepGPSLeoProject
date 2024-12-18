@@ -13,7 +13,6 @@
 				</q-toolbar-title>
 
 				<div class="right-controls">
-					<q-btn flat label="Refresh Database" @click="refreshDatabase" />
 					<q-btn round dense icon="person" @click="goToUserPage" />
 				</div>
 			</q-toolbar>
@@ -33,31 +32,12 @@
 			<router-view />
 		</q-page-container>
 	</q-layout>
-	<q-dialog v-model="showRefreshDialog" persistent>
-		<q-card>
-			<q-card-section>
-				<div class="text-h6">Confirm Refresh</div>
-				<div class="text-body2">Are you sure you want to refresh the database?</div>
-			</q-card-section>
-
-			<q-card-actions align="right">
-				<q-btn flat label="Cancel" color="primary" v-close-popup />
-				<q-btn flat label="OK" color="primary" :loading="isLoading" @click="onConfirmRefreshDatabase">
-					<template v-slot:loading>
-						<q-spinner-hourglass class="on-left" />
-						Loading...
-					</template>
-				</q-btn>
-			</q-card-actions>
-		</q-card>
-	</q-dialog>
 </template>
 
 <script setup lang="ts">
 import DeviceList from 'components/deviceList.vue';
 import { storeToRefs } from 'pinia';
-import { debounce, useQuasar } from 'quasar';
-import { apiService } from 'src/api/apiService';
+import { debounce } from 'quasar';
 import { useDeviceStore } from 'src/stores/deviceStore';
 import { useUserStore } from 'src/stores/userStore';
 import { onMounted, ref, watch } from 'vue';
@@ -70,47 +50,22 @@ defineOptions({
 /*
 	Buttons control logic
 */
-const $q = useQuasar();  // Keep only one instance of useQuasar
 const deviceStore = useDeviceStore();
 const userStore = useUserStore();
 const { userPreferences } = storeToRefs(userStore);
-const isLoading = ref(false);
-const showRefreshDialog = ref(false);
 const router = useRouter();
-const refreshDatabase = async () => {
-	showRefreshDialog.value = true;
-};
 
 const backToMain = () => {
 	router.push('/');
 };
 
-const onConfirmRefreshDatabase = async () => {
-	try {
-		isLoading.value = true;
-		await apiService.refreshDatabase();
-		console.log('Database refreshed successfully');
-		await deviceStore.loadDevices();
-
-		showRefreshDialog.value = false;
-		router.push('/');
-		$q.notify({
-			type: 'positive',
-			message: 'Database refreshed successfully!',
-		});
-	} catch (error) {
-		console.error('Error refreshing database:', error);
-		$q.notify({
-			type: 'negative',
-			message: 'Failed to refresh database. Please try again later.'
-		});
-	} finally {
-		isLoading.value = false;
-	}
-}
-
 const goToUserPage = () => {
-	router.push('/user'); // Navigate to the user page
+	// Check current route before navigating
+	if (route.path === '/user') {
+		router.push('/'); // Navigate to main page if already on user page
+	} else {
+		router.push('/user'); // Navigate to user page otherwise
+	}
 };
 
 /*

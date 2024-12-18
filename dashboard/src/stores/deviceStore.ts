@@ -26,7 +26,13 @@ export const useDeviceStore = defineStore('device', () => {
 	const pollingActive = ref(false);
 
     const mergeUpdatedDevices = (updatedDevices: Device[], iconMap: {[key: string]: string} | null) => {
-        if (!updatedDevices || updatedDevices.length === 0) {
+		if(iconMap) { 
+			devices.value.forEach(device => {
+				device.iconUrl = iconMap[device.device_id];
+			}); 
+		}
+		
+		if (!updatedDevices || updatedDevices.length === 0) {
             // Handle empty or null updatedDevices appropriately. Log a message or return early.
 			if (!updatedDevices){
 				console.log('updatedDevices is null or undefined, skipping merge')
@@ -34,13 +40,13 @@ export const useDeviceStore = defineStore('device', () => {
 				console.log('No updated devices received, skipping merge');
 			}
 
-            if(iconMap) { // Update iconUrl from iconMap even if updatedDevices is empty.
-                console.log(iconMap);
+				
+			devices.value = [...devices.value]; // Trigger reactivity
+			if(iconMap) { 
 				devices.value.forEach(device => {
 					device.iconUrl = iconMap[device.device_id];
-                });
-            }
-			devices.value = [...devices.value]; // Trigger reactivity
+				}); 
+			}
 			return; // Return early to avoid errors
         }
 
@@ -81,7 +87,6 @@ export const useDeviceStore = defineStore('device', () => {
         devices.value = [...devices.value]; // Trigger reactivity
     };
 	const poll = async () => {
-		console.log('polling');
 		try {
 		  const response = await apiService.checkForUpdates(lastUpdate.value);
 		  lastUpdate.value = response.lastUpdate;
@@ -131,14 +136,12 @@ export const useDeviceStore = defineStore('device', () => {
 
 
 	const loadDevices = async () => {
-		console.log('loadDevices');
 		if (deviceLoading.value) return;
 
 		deviceLoading.value = true;
 
 		try {
 			const loadedDevices = await apiService.getDevices();
-			console.log(loadedDevices);
 			devices.value = loadedDevices.map((device) => {
 				let latestDevicePoint: DevicePoint | null = null;
 				let latestAccurateDevicePoint: DevicePoint | null = null;

@@ -41,6 +41,7 @@ type CheckForUpdatesResponse struct {
 // It handles both inserting new devices and updating existing ones, including their settings.
 func FetchAndStoreDevices(db *database.MongoDB, config models.Config, updateMutex *sync.RWMutex, lastUpdateTimes map[string]time.Time, lastChecked *time.Time) {
 	// API fetching and response handling
+	log.Printf("Fetching device data from the external API")
 	apiURL := fmt.Sprintf("%s%s", config.APIURL, config.APIKey)
 	resp, err := http.Get(apiURL)
 	if err != nil {
@@ -115,6 +116,7 @@ func FetchAndStoreDevices(db *database.MongoDB, config models.Config, updateMute
 				continue
 			}
 
+			// For new devices, always insert the settings
 			if settingsOK {
 				_, err := db.SaveDeviceSettings(settings)
 				if err != nil {
@@ -129,6 +131,7 @@ func FetchAndStoreDevices(db *database.MongoDB, config models.Config, updateMute
 			updateMutex.RUnlock()
 
 			if updatedAt.After(lastUpdatedAt) {
+				// Update device data
 				_, err := collection.ReplaceOne(context.TODO(), bson.M{"device_id": deviceID}, device)
 				if err != nil {
 					log.Printf("Failed to replace device %s: %v\n", deviceID, err)
@@ -136,18 +139,27 @@ func FetchAndStoreDevices(db *database.MongoDB, config models.Config, updateMute
 				}
 
 				if settingsOK {
-					settings, err = db.SaveDeviceSettings(settings)
-					if err != nil {
-						log.Printf("Failed to update device settings for device %s: %v\n", deviceID, err)
+					// Check if settings already exist for this device
+					existingSettings, err := db.GetDeviceSettings(deviceID)
+					if err != nil || existingSettings == (models.DeviceSettings{}) {
+						// Only save settings if they don't exist
+						settings, err = db.SaveDeviceSettings(settings)
+						if err != nil {
+							log.Printf("Failed to update device settings for device %s: %v\n", deviceID, err)
+						} else {
+							log.Printf("Initialized settings for existing device: %s\n", deviceID)
+						}
 					} else {
-						color.Green("Updated device: %s, last update was %s ago, updated_at: %s\n",
-							deviceID, time.Since(lastUpdatedAt).Round(time.Second), updatedAt)
+						log.Printf("Preserving existing user settings for device %s\n", deviceID)
 					}
 				}
 
 				updateMutex.Lock()
 				lastUpdateTimes[deviceID] = updatedAt
 				updateMutex.Unlock()
+
+				color.Green("Updated device: %s, last update was %s ago, updated_at: %s\n",
+					deviceID, time.Since(lastUpdatedAt).Round(time.Second), updatedAt)
 			} else {
 				log.Printf("Device %s not updated. Current updated_at: %s is before or equal to last updated_at: %s\n",
 					deviceID, updatedAt, lastUpdatedAt)
@@ -234,6 +246,7 @@ func buildIconMap(db *database.MongoDB, currentDevices map[string]primitive.Obje
 // New helper function to fetch updated devices efficiently. Fetches only the fields you need.
 func fetchUpdatedDevicesSince(db *database.MongoDB, config models.Config, since time.Time, lastUpdateTimes map[string]time.Time) ([]map[string]interface{}, error) {
 
+	
 	collection := db.Client.Database(config.DatabaseName).Collection(config.DeviceCollectionName)
 
 	projection := bson.D{

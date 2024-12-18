@@ -190,9 +190,7 @@ func mutateDevices(devices *[]map[string]interface{}, mutateCount int) {
 			latestDevicePoint, ok := device["latest_device_point"].(map[string]interface{})
 			if !ok {
 				log.Printf("latest_device_point is not a map. Skipping device %v", device)
-
 				continue
-
 			}
 
 			if _, ok := latestDevicePoint["lat"]; ok {
@@ -246,7 +244,7 @@ func mutateDevices(devices *[]map[string]interface{}, mutateCount int) {
 
 // Helper functions to mutate latitude, longitude. Add or subtract a random number between 0.01 degree to 0.05 degree
 func mutateLat(lat float64) float64 {
-	change := (rand.Float64() * 0.04) + 0.01 // Random change between 0.01 and 0.05
+	change := (rand.Float64() * 0.19) + 0.01 // Random change between 0.01 and 0.20
 	if rand.Intn(2) == 0 {
 		lat += change
 	} else {
@@ -257,7 +255,7 @@ func mutateLat(lat float64) float64 {
 
 func mutateLng(lng float64) float64 {
 
-	change := (rand.Float64() * 0.04) + 0.01 // Random change between 0.01 and 0.05
+	change := (rand.Float64() * 0.19) + 0.01 // Random change between 0.01 and 0.20
 	if rand.Intn(2) == 0 {
 		lng += change
 	} else {

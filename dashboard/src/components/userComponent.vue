@@ -12,6 +12,7 @@
 			<q-radio v-model="userPreferences.unit" val="imperial" label="Imperial" />
 
 			<q-btn label="Save" type="submit" color="primary" />
+			<q-btn label="Back" @click="goBack"/>
 		</div>
 	</q-form>
 	<q-spinner v-else />
@@ -45,6 +46,12 @@ const saveUserPreferences = async () => {
 	console.error(error);
   }
 };
+
+
+const goBack = () => { //Add goBack function to handle back button
+    router.push('/');
+};
+
 
 // Watch only the loading state
 watch(

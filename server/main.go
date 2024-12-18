@@ -29,8 +29,11 @@ func main() {
 	mockMode := flag.Bool("mock", false, "Run in mock mode")
 	mutateChance := flag.Float64("mutateChance", 0.3, "Chance of mutation (0.0 - 1.0)") // Mutation chance flag
 	mutateDeviceCount := flag.Int("mutateDevice", 2, "Number of devices to mutate")     // Number of mutations flag
-
 	flag.Parse()
+	fmt.Println("Mock mode:", *mockMode)
+	fmt.Println("Mutation chance:", *mutateChance)
+	fmt.Println("Number of mutations:", *mutateDeviceCount)
+
 	if *mockMode {
 		// Get mock server port from config, default to 8081 if not set
 		mockServerPort := config.MockServerPort

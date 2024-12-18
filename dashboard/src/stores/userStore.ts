@@ -25,7 +25,6 @@ export const useUserStore = defineStore('user', () => {
         try {
             const preferences = await apiService.getUserPreferences(userID.value); // the user is default_user right now
             userPreferences.value = preferences; 
-			console.log(preferences);
 			userLoaded.value = true; 
 			userLoading.value = false; 
         } catch (error) {

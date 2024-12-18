@@ -81,17 +81,19 @@ func main() {
 			deviceRoutes.GET("/check-updates", func(c *gin.Context) {
 				api.CheckForUpdates(c, db, config, &lastChecked, lastUpdateTimes)
 			})
+			deviceRoutes.GET("/:id/settings", deviceHandlers.GetDeviceSettingsHandler)
+			deviceRoutes.PUT("/:id/settings", deviceHandlers.SaveDeviceSettingsHandler)
 			deviceRoutes.DELETE("/refresh", deviceHandlers.RefreshDatabaseHandler)
 		}
 		userRoutes := apiRoutes.Group("/users")
 		{
 			userRoutes.GET("/:userId/preferences", userHandlers.GetUserPreferencesHandler)
-			userRoutes.POST("/preferences", userHandlers.SaveUserPreferencesHandler)
+			userRoutes.POST("/:userId/preferences", userHandlers.SaveUserPreferencesHandler)
 		}
 	}
 
-	router.POST("/devices/:id/icon", iconHandlers.HandleIconUpload)
-	router.GET("/getIcon/:id", iconHandlers.GetIconHandler)
+	router.POST("/api/devices/:id/icon", iconHandlers.HandleIconUpload)
+	router.GET("/api/devices/:id/icon", iconHandlers.GetIconHandler)
 	router.Static("/icons", "./icons")
 
 	router.Run(":" + config.ServerPort)

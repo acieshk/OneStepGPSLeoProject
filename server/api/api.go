@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -23,6 +24,8 @@ import (
 	"github.com/fatih/color"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -31,11 +34,13 @@ type CheckForUpdatesResponse struct {
 	NeedsUpdate    bool                     `json:"needsUpdate"`
 	LastUpdate     string                   `json:"lastUpdate"`
 	UpdatedDevices []map[string]interface{} `json:"updatedDevices,omitempty"` // Include updated devices
+	IconMap        map[string]string        `json:"icon_map"`
 }
 
 // FetchAndStoreDevices fetches device data from the external API and updates the database.
-// It handles both inserting new devices and updating existing ones based on their "updated_at" timestamps.
+// It handles both inserting new devices and updating existing ones, including their settings.
 func FetchAndStoreDevices(db *database.MongoDB, config models.Config, updateMutex *sync.RWMutex, lastUpdateTimes map[string]time.Time, lastChecked *time.Time) {
+	// API fetching and response handling
 	apiURL := fmt.Sprintf("%s%s", config.APIURL, config.APIKey)
 	resp, err := http.Get(apiURL)
 	if err != nil {
@@ -61,7 +66,6 @@ func FetchAndStoreDevices(db *database.MongoDB, config models.Config, updateMute
 
 	collection := db.Client.Database(config.DatabaseName).Collection(config.DeviceCollectionName)
 
-	// Get current devices from the database for efficient checking
 	currentDevices, err := getCurrentDevicesMap(collection)
 	if err != nil {
 		log.Printf("Failed to get current devices: %v\n", err)
@@ -87,50 +91,68 @@ func FetchAndStoreDevices(db *database.MongoDB, config models.Config, updateMute
 			continue
 		}
 
-		var lastUpdatedAt time.Time
-		updateMutex.RLock()
-		lastUpdatedAt, ok = lastUpdateTimes[deviceID]
-		updateMutex.RUnlock()
+		settingsMap, settingsOK := device["settings"].(map[string]interface{})
+		delete(device, "settings")
 
-		if _, exists := currentDevices[deviceID]; !exists {
-			// Device doesn't exist, insert it
+		var settings models.DeviceSettings
+		if settingsOK {
+			bData, _ := bson.Marshal(settingsMap)
+			bson.Unmarshal(bData, &settings)
+			settings.DeviceID = deviceID
+			settings.UpdatedAt = updatedAt.Format(time.RFC3339)
+			if v, versionOK := settingsMap["version"].(int); versionOK {
+				settings.Version = v
+			}
+		}
+
+		_, deviceExists := currentDevices[deviceID]
+
+		if !deviceExists {
+			// Insert new device
 			_, err := collection.InsertOne(context.TODO(), device)
 			if err != nil {
-				log.Printf("Error inserting device %s: %v\n", deviceID, err)
+				log.Printf("Error inserting new device data %s: %v\n", deviceID, err)
 				continue
 			}
-			log.Printf("Inserted new device: %s, updated_at: %s\n", deviceID, updatedAt)
 
-		} else {
-			if !ok {
-				log.Printf("Warning: No last updated time found for existing device %s. Updating anyway...", deviceID)
-			} else if updatedAt.After(lastUpdatedAt) {
-				update := bson.M{
-					"latest_device_point":          device["latest_device_point"],
-					"active_state":                 device["active_state"],
-					"updated_at":                   device["updated_at"],
-					"latest_accurate_device_point": device["latest_accurate_device_point"],
-					"online":                       device["online"],
-				}
-
-				_, err := collection.UpdateOne(context.TODO(), bson.M{"device_id": deviceID}, bson.M{"$set": update})
+			if settingsOK {
+				_, err := db.SaveDeviceSettings(settings)
 				if err != nil {
-					log.Printf("Failed to update device %s: %v\n", deviceID, err)
+					log.Printf("Failed to insert new device settings for device %s: %v\n", deviceID, err)
+					continue
+				}
+			}
+			log.Printf("Inserted new device: %s, updated_at: %s\n", deviceID, updatedAt)
+		} else {
+			updateMutex.RLock()
+			lastUpdatedAt, _ := lastUpdateTimes[deviceID]
+			updateMutex.RUnlock()
+
+			if updatedAt.After(lastUpdatedAt) {
+				_, err := collection.ReplaceOne(context.TODO(), bson.M{"device_id": deviceID}, device)
+				if err != nil {
+					log.Printf("Failed to replace device %s: %v\n", deviceID, err)
 					continue
 				}
 
-				timeDiff := time.Since(lastUpdatedAt)
-				color.Green("Updated device: %s, last update was %s ago, updated_at: %s\n", deviceID, timeDiff.Round(time.Second), updatedAt)
+				if settingsOK {
+					settings, err = db.SaveDeviceSettings(settings)
+					if err != nil {
+						log.Printf("Failed to update device settings for device %s: %v\n", deviceID, err)
+					} else {
+						color.Green("Updated device: %s, last update was %s ago, updated_at: %s\n",
+							deviceID, time.Since(lastUpdatedAt).Round(time.Second), updatedAt)
+					}
+				}
 
+				updateMutex.Lock()
+				lastUpdateTimes[deviceID] = updatedAt
+				updateMutex.Unlock()
+			} else {
+				log.Printf("Device %s not updated. Current updated_at: %s is before or equal to last updated_at: %s\n",
+					deviceID, updatedAt, lastUpdatedAt)
 			}
-			// else {
-			// 	log.Printf("Device %s not updated. \n Current updated_at: %s is not after last updated_at: %s\n", deviceID, updatedAt, lastUpdatedAt)
-			// }
 		}
-
-		updateMutex.Lock()
-		lastUpdateTimes[deviceID] = updatedAt
-		updateMutex.Unlock()
 	}
 
 	now := time.Now()
@@ -140,17 +162,14 @@ func FetchAndStoreDevices(db *database.MongoDB, config models.Config, updateMute
 }
 
 // CheckForUpdates checks if any device has been updated since the client's last check and returns updated devices.
-func CheckForUpdates(c *gin.Context, db *database.MongoDB, config models.Config, lastChecked *time.Time, lastUpdateTimes map[string]time.Time) { // Add db, config, lastUpdateTimes as parameter
-
+func CheckForUpdates(c *gin.Context, db *database.MongoDB, config models.Config, lastChecked *time.Time, lastUpdateTimes map[string]time.Time) {
 	clientLastUpdateStr := c.Query("lastUpdate")
-
 	if clientLastUpdateStr == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing lastUpdate parameter"})
 		return
 	}
 
 	clientLastUpdate, err := time.Parse(time.RFC3339, clientLastUpdateStr)
-
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid lastUpdate timestamp format. Use RFC3339."})
 		return
@@ -160,23 +179,20 @@ func CheckForUpdates(c *gin.Context, db *database.MongoDB, config models.Config,
 
 	var updatedDevices []map[string]interface{}
 
-	//Fetch devices only if needs update and there is no error.
-	if needsUpdate && err == nil {
+	// Get the icon map - always fetch, regardless of needsUpdate
+	iconMap, err := db.GetIconMap()
+	if err != nil {
+		log.Printf("Failed to get icon map: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get icon map"})
+		return // Return early on error
+	}
 
+	if needsUpdate {
 		updatedDevices, err = fetchUpdatedDevicesSince(db, config, clientLastUpdate, lastUpdateTimes)
-		if needsUpdate {
-			if len(updatedDevices) == 0 && err == nil {
-				log.Println("needsUpdate is true, but no updated devices found. Check database/timestamps.")
-
-			}
-
-		}
-
 		if err != nil {
-
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to fetch updated devices %v", err)}) //Return error message if fetching fails
-			return
-
+			log.Printf("Failed to fetch updated devices: %v", err) // Log error
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch updated devices"})
+			return // Return early on error
 		}
 
 	}
@@ -185,9 +201,34 @@ func CheckForUpdates(c *gin.Context, db *database.MongoDB, config models.Config,
 		NeedsUpdate:    needsUpdate,
 		LastUpdate:     lastChecked.Format(time.RFC3339),
 		UpdatedDevices: updatedDevices,
+		IconMap:        iconMap, // Include iconMap in response
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// New helper function to efficiently build icon map based on updated devices.
+func buildIconMap(db *database.MongoDB, currentDevices map[string]primitive.ObjectID) (map[string]string, error) {
+	iconMap := make(map[string]string) // Initialize an empty iconMap
+
+	for deviceID := range currentDevices { // Iterate through ALL devices
+
+		deviceSettings, err := db.GetDeviceSettings(deviceID)
+		if err != nil { //Handle error for fetching device settings, return early if failed and log the error.
+			if !errors.Is(err, mongo.ErrNoDocuments) {
+
+				return nil, fmt.Errorf("failed to get device settings: %w", err)
+			}
+
+			log.Printf("Settings not found for device: %s. Using default icon\n", deviceID)
+			iconMap[deviceID] = "" // Use empty string if no settings found, frontend should handle null/empty string
+			continue
+		}
+
+		iconMap[deviceID] = deviceSettings.IconURL // Add iconURL to iconMap. No timestamp check here
+	}
+
+	return iconMap, nil
 }
 
 // New helper function to fetch updated devices efficiently. Fetches only the fields you need.

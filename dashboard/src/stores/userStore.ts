@@ -13,7 +13,7 @@ export const useUserStore = defineStore('user', () => {
 	const userLoading = ref(false);
 	const userID = ref('default_user');
 	const userPreferences = ref<UserPreferences>({
-		userID: 'default_user',
+		userId: 'default_user',
 		version: 0,
 		DeviceListWidth: 400, 
 		unit: 'original',
@@ -25,6 +25,7 @@ export const useUserStore = defineStore('user', () => {
         try {
             const preferences = await apiService.getUserPreferences(userID.value); // the user is default_user right now
             userPreferences.value = preferences; 
+			console.log(preferences);
 			userLoaded.value = true; 
 			userLoading.value = false; 
         } catch (error) {
@@ -37,19 +38,30 @@ export const useUserStore = defineStore('user', () => {
     }
 
 	async function saveUserPreferences() {
-        try {
-            const updatedPreferences = await apiService.saveUserPreferences(userPreferences.value);
-            // Update the store with the saved preferences (if the API returns them)
-			userPreferences.value = updatedPreferences; // Assuming server sends back updated preferences
-
-        } catch (error) {
-            $q.notify({
-                type: 'negative', // Use a negative type for errors
-                message: 'Error saving preferences. Please try again later.', // User-friendly message
-                position: 'top', // Or other preferred position
-            });
-        }
-    }
+		try {
+			console.log(userPreferences.value);
+			const updatedPreferences = await apiService.saveUserPreferences(userPreferences.value);
+			userPreferences.value = updatedPreferences;
+	
+		} catch (error) {
+			$q.notify({
+				type: 'warning',
+				message: 'Your client is outdated. Please refresh your browser to get the latest changes.',
+				position: 'top',
+				timeout: 0,  // 0 means the notification will stay indefinitely
+				actions: [
+					{
+						label: 'Refresh Now',
+						color: 'white',
+						handler: () => {
+							window.location.reload();
+						}
+					}
+				],
+				closeBtn: true  // Adds an X button to manually dismiss if needed
+			});
+		}
+	}
 
 	function setDeviceListWidth(DeviceListWidth: number) {
 		userPreferences.value.DeviceListWidth = DeviceListWidth

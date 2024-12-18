@@ -186,3 +186,37 @@ func (h *DeviceHandlers) RefreshDatabaseHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Database refreshed successfully"})
 }
+
+// Add new handler functions for settings.
+func (h *DeviceHandlers) GetDeviceSettingsHandler(c *gin.Context) {
+	deviceID := c.Param("id")
+
+	settings, err := h.DB.GetDeviceSettings(deviceID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, settings)
+}
+
+func (h *DeviceHandlers) SaveDeviceSettingsHandler(c *gin.Context) {
+	var settings models.DeviceSettings
+	if err := c.ShouldBindJSON(&settings); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	updatedSettings, err := h.DB.SaveDeviceSettings(settings) // Updated to match changes
+	if err != nil {
+		if err.Error() == "Outdated device settings version" {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error(), "currentPrefs": updatedSettings})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+
+	}
+
+	c.JSON(http.StatusOK, updatedSettings) //Return updated settings
+}

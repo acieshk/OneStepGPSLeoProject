@@ -1,382 +1,353 @@
 <template>
-	<q-page padding>
-		<div class="device-edit-header">
-			<q-toolbar>
-				<q-toolbar-title>Device Edit</q-toolbar-title>
-				<div class="buttons">
+	<q-page class="form-container">
+		<div class="form-wrapper">
+			<div class="device-edit-header header-section">
+				<q-toolbar>
+					<q-toolbar-title>Edit Device Settings</q-toolbar-title>
 					<q-btn flat label="Back" @click="goBack" />
-					<q-btn color="primary" :disable="saveDisabled" :loading="isLoading" @click="saveDevice">
+					<q-btn color="primary" :disable="!deviceSettings" :loading="isSaving" @click="saveSettings">
 						Save
 					</q-btn>
+				</q-toolbar>
+			</div>
+			<div v-if="deviceSettingsLoading">Loading settings...</div>
+			<div v-else-if="!deviceSettingsLoaded">Failed to load settings.</div>
+
+			<q-form ref="formRef" @submit.prevent="saveSettings" class="settings-form" v-else-if="deviceSettings">
+
+				<!-- Icon Upload Section -->
+				<div class="row q-col-gutter-md">
+					<div class="col-12">
+						<q-input v-model="deviceSettings.iconUrl" label="Icon URL" disable />
+						<IconUploader :device-settings="deviceSettings" :current-icon-url="currentIconUrl"
+							:is-uploading="isUploading" @upload="handleIconUpload" @remove="handleRemoveIcon"
+							@default-icon="handleDefaultIcon" @image-error="handleImageError" />
+
+					</div>
 				</div>
-			</q-toolbar>
-		</div>
-		<!-- the icon uploader section -->
-		<IconUploader />
-
-		<div class="tree-controls">
-			<q-btn flat icon="unfold_more" @click="expandAll">Expand All</q-btn>
-			<q-btn flat icon="unfold_less" @click="collapseAll">Collapse All</q-btn>
-		</div>
-
-		<q-tree :nodes="deviceNodes" ref="treeRef" node-key="_id" :loading="isLoading">
-			<template v-slot:default-header="prop">
-				<div class="row items-center q-gutter-sm">
-					<div>{{ prop.node.label }}:</div>
-					<!-- Add plus button for array nodes -->
-					<q-btn v-if="isArrayNode(prop.node)" flat round dense icon="add" size="sm" class="q-ml-sm"
-						@click.stop="addArrayItem(prop.node)" />
-					<!-- Add a minus button for array children -->
-					<q-btn v-if="isArrayChild(prop.node)" flat round dense icon="remove" size="sm" class="q-ml-sm"
-						color="negative" @click.stop="removeArrayItem(prop.node)" />
-					<!-- Handle Array type -->
-					<template v-if="Array.isArray(prop.node.value)">
-						<div class="column">
-							<div v-for="(item, index) in prop.node.value" :key="index"
-								class="row items-center q-gutter-sm">
-								<q-input v-model="prop.node.value[index]" dense outlined
-									@update:model-value="val => updateNodeValue(prop.node, null, val)" />
-							</div>
-							<q-btn label="Add Item" color="positive" flat dense @click="addArrayItem(prop.node)" />
-						</div>
-					</template>
-
-					<!-- Handle Boolean type -->
-					<q-select v-else-if="typeof prop.node.value === 'boolean'" :disable="isDisabled(prop.node)"
-						v-model="prop.node.value" :options="[
-							{ label: 'True', value: true },
-							{ label: 'False', value: false }
-						]" dense outlined options-dense emit-value map-options :display-value="prop.node.value ? 'true' : 'false'"
-						style="min-width: 100px" @blur="updateNodeValue(prop.node, null, prop.node.value)" />
-
-					<!-- Handle DateTime type -->
-					<q-input v-else-if="isDateValue(prop.node.value)" :disable="isDisabled(prop.node)"
-						v-model="prop.node.value" outlined dense
-						@blur="updateNodeValue(prop.node, null, prop.node.value)" />
-					<!-- Handle String/Number type -->
-					<q-input v-else-if="prop.node.value !== undefined" :disable="isDisabled(prop.node)"
-						v-model="prop.node.value" dense outlined
-						@blur="updateNodeValue(prop.node, null, prop.node.value)" />
+				<!-- System Fields (Disabled) -->
+				<div class="text-h6">System Information</div>
+				<div class="row q-col-gutter-md">
+					<q-input class="col-12 col-md-6" v-model="deviceSettings.device_id" label="Device ID" disable />
+					<q-input class="col-12 col-md-6" v-model="deviceSettings.version" label="Version" type="number"
+						disable />
+					<q-input class="col-12 col-md-6" v-model="deviceSettings.updated_at" label="Last Updated" disable />
 				</div>
-			</template>
-		</q-tree>
 
+				<!-- Speed Settings -->
+				<div class="text-h6">Speed Settings</div>
+				<div class="row q-col-gutter-md">
+					<!-- Begin Moving Speed -->
+					<div class="col-12 col-md-6">
+						<q-input v-model.number="deviceSettings.begin_moving_speed.value" label="Begin Moving Speed"
+							type="number" :rules="[val => val > 0 || 'Speed must be greater than 0']" />
+						<q-input v-model="deviceSettings.begin_moving_speed.unit" label="Unit" type="text" />
+					</div>
+
+					<!-- Begin Stopped Speed -->
+					<div class="col-12 col-md-6">
+						<q-input v-model.number="deviceSettings.begin_stopped_speed.value" label="Begin Stopped Speed"
+							type="number" :rules="[val => val >= 0 || 'Speed must be non-negative']" />
+						<q-input v-model="deviceSettings.begin_stopped_speed.unit" label="Unit" type="text" />
+					</div>
+				</div>
+
+				<!-- Distance and GPS Settings -->
+				<div class="text-h6">Distance and GPS Settings</div>
+				<div class="row q-col-gutter-md">
+					<!-- Max Drift Distance -->
+					<div class="col-12 col-md-6">
+						<q-input v-model.number="deviceSettings.max_drift_distance.value" label="Max Drift Distance"
+							type="number" :rules="[val => val > 0 || 'Distance must be greater than 0']" />
+						<q-input v-model="deviceSettings.max_drift_distance.unit" label="Unit" type="text" />
+					</div>
+
+					<!-- GPS Settings -->
+					<div class="col-12 col-md-6">
+						<q-input v-model.number="deviceSettings.min_num_satellites" label="Minimum Number of Satellites"
+							type="number" :rules="[val => val > 0 || 'Must be greater than 0']" />
+						<q-toggle v-model="deviceSettings.ignore_unset_min_num_sats"
+							label="Ignore Unset Minimum Satellites" />
+						<q-input v-model.number="deviceSettings.max_hdop" label="Maximum HDOP" type="number" />
+					</div>
+				</div>
+
+				<!-- Timeout Settings -->
+				<div class="text-h6">Timeout Settings</div>
+				<div class="row q-col-gutter-md">
+					<!-- Drive Timeout -->
+					<div class="col-12 col-md-4">
+						<q-input v-model.number="deviceSettings.drive_timeout.value" label="Drive Timeout"
+							type="number" />
+						<q-input v-model="deviceSettings.drive_timeout.unit" label="Unit" type="text" />
+					</div>
+
+					<!-- Stop Timeout -->
+					<div class="col-12 col-md-4">
+						<q-input v-model.number="deviceSettings.stop_timeout.value" label="Stop Timeout"
+							type="number" />
+						<q-input v-model="deviceSettings.stop_timeout.unit" label="Unit" type="text" />
+					</div>
+
+					<!-- Offline Timeout -->
+					<div class="col-12 col-md-4">
+						<q-input v-model.number="deviceSettings.offline_timeout.value" label="Offline Timeout"
+							type="number" />
+						<q-input v-model="deviceSettings.offline_timeout.unit" label="Unit" type="text" />
+					</div>
+				</div>
+
+				<!-- Fuel Settings -->
+				<div class="text-h6">Fuel Settings</div>
+				<div class="row q-col-gutter-md">
+					<div class="col-12 col-md-6">
+						<q-input v-model="deviceSettings.fuel_consumption.calculation_method" label="Calculation Method"
+							type="text" />
+						<q-input v-model="deviceSettings.fuel_consumption.measurement" label="Measurement"
+							type="text" />
+						<q-input v-model="deviceSettings.fuel_consumption.fuel_type" label="Fuel Type" type="text" />
+						<q-input v-model.number="deviceSettings.fuel_consumption.fuel_cost" label="Fuel Cost"
+							type="number" />
+						<q-input v-model.number="deviceSettings.fuel_consumption.fuel_economy" label="Fuel Economy"
+							type="number" />
+					</div>
+				</div>
+
+				<!-- Additional Settings -->
+				<div class="text-h6">Additional Settings</div>
+				<div class="row q-col-gutter-md">
+					<div class="col-12 col-md-6">
+						<q-input v-model="deviceSettings.initial_device_point_delete_cutoff_time"
+							label="Initial Device Point Delete Cutoff Time" type="text" />
+						<q-input v-model="deviceSettings.engine_hours_counter_config"
+							label="Engine Hours Counter Config" />
+						<q-toggle v-model="deviceSettings.use_v3_engine_hours" label="Use V3 Engine Hours" />
+						<q-input v-model.number="deviceSettings.history_retention_days" label="History Retention Days"
+							type="number" />
+					</div>
+				</div>
+			</q-form>
+		</div>
 	</q-page>
 </template>
-
 <script setup lang="ts">
-import IconUploader from 'components/iconUploader.vue';
 import { useRoute, useRouter } from 'vue-router';
-import { nextTick, onMounted, ref, watch } from 'vue';
+import { ref, watch, onMounted, computed } from 'vue';
+import { useDeviceStore } from 'src/stores/deviceStore';
+import IconUploader from 'components/iconUploader.vue'; // Import the IconUploader
 import { storeToRefs } from 'pinia';
-import { PrimitiveValue, type DeviceValue, useDeviceStore } from 'src/stores/deviceStore';
-import { QInput, QTree } from 'quasar';
-
-
-interface TreeNode {
-	label: string;
-	_id: string;
-	value?: unknown | PrimitiveValue;
-	children?: TreeNode[];
-	parent?: TreeNode;
-}
+import { Notify } from 'quasar';
+import { QForm } from 'quasar';
 
 const router = useRouter();
 const route = useRoute();
 const deviceStore = useDeviceStore();
-const { editingDevice, deviceLoaded } = storeToRefs(deviceStore);
 
-const deviceNodes = ref<TreeNode[]>([]);
-const isLoading = ref(false);
+const deviceId = ref<string | null>(null);
+const { deviceSettings, deviceSettingsLoaded, deviceSettingsLoading } = storeToRefs(deviceStore);
 const isSaving = ref(false);
+const formRef = ref<QForm | null>(null);
+const isUploading = ref(false);
 
-const saveDisabled = ref(false);
+const DEFAULT_ICON_URL = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png';
 
-const treeRef = ref<InstanceType<typeof QTree> | null>(null);
+const currentIconUrl = computed(() => {
+	if (!deviceSettings.value?.iconUrl) {
+		return DEFAULT_ICON_URL;
+	}
+	return deviceSettings.value.iconUrl.startsWith('http')
+		? deviceSettings.value.iconUrl
+		: `https://${deviceSettings.value.iconUrl}`;
+});
 
-const expandAll = () => {
-	if (treeRef.value) {
-		treeRef.value.expandAll();
+onMounted(() => {
+	//Set device ID for data fetching
+	deviceId.value = route.params.id as string;
+	loadDeviceSettings();
+});
+
+watch(() => route.params.id, () => {
+	deviceId.value = route.params.id as string
+	loadDeviceSettings();
+})
+
+// Fetch device settings when component is mounted or route param ID changes.
+const loadDeviceSettings = async () => {
+	if (!deviceId.value) return;
+	deviceSettings.value = null;
+	deviceSettingsLoaded.value = false;
+	try {
+		await deviceStore.fetchDeviceSettings(deviceId.value);
+
+	} catch (error) {
+		// Handle error appropriately
+		console.error('Failed to load device settings:', error);
 	}
 };
 
-const collapseAll = () => {
-	if (treeRef.value) {
-		treeRef.value.collapseAll();
-	}
+
+
+const goBack = () => {
+	router.push('/');
 };
 
-const goBack = () => router.push('/');
+const saveSettings = async () => {
+	if (!deviceSettings.value) return;
 
-// Fields to disable
-const disabledFields = ['_id', 'bcc_id', 'visible', 'iconUrl', 'markerId'];
-
-const isDisabled = (node: TreeNode) => {
-	return disabledFields.includes(node.label); // Check if node label is in disabledFields
-};
-
-const saveDevice = async () => {
 	try {
 		isSaving.value = true;
-		if (editingDevice.value) {
-			await deviceStore.updateDevice(editingDevice.value);
-			router.push('/');
-		} else {
-			console.error('Editing device is null or undefined.');
-		}
+		await deviceStore.saveDeviceSettings(deviceSettings.value);
+		goBack();
 	} catch (error) {
-		console.error('Failed to save device:', error);
+		console.error('Failed to save settings:', error);
+		//error already caught in store, no need to display another one
 	} finally {
 		isSaving.value = false;
 	}
 };
 
-const updateNodeValue = (node: TreeNode, arrayIndex: number | null, newValue: DeviceValue) => {
-	const pathParts = node._id.split('.');
+// Event Handlers from iconUploader. 
 
-	if (arrayIndex !== null && arrayIndex !== undefined) { // Handle array index for updates
-		pathParts[pathParts.length - 1] = `${pathParts[pathParts.length - 1]}[${arrayIndex}]`;
+const handleIconUpload = async (file: File) => {
+	if (!deviceId.value || !file) return;
+
+	isUploading.value = true;
+	try {
+		await deviceStore.updateIcon(deviceId.value, file, null);
+	} catch (error) {
+		console.error('Failed to upload icon:', error);
+		Notify.create({
+			type: 'negative',
+			message: 'Failed to upload icon'
+		});
+	} finally {
+		isUploading.value = false;
 	}
-
-	deviceStore.updateDeviceProperty(pathParts, newValue);
 };
 
-const objectToTree = (obj: Record<string, unknown>): TreeNode[] => {
-	const convertToNodes = (data: unknown, path = ''): TreeNode[] => {
-		if (!data || typeof data !== 'object') {
-			return [];
+const handleRemoveIcon = async () => {
+	if (!deviceId.value) return;
+
+	try {
+		await deviceStore.updateIcon(deviceId.value, null, null);
+	} catch (error) {
+		console.error('Failed to remove icon:', error);
+		Notify.create({
+			type: 'negative',
+			message: 'Failed to remove icon'
+		});
+	}
+};
+
+const handleDefaultIcon = async (colorOption: { label: string, value: string }) => {
+	if (!deviceId.value) return;
+
+	//   console.log('trying to update default icon:', deviceId.value);
+	try {
+		await deviceStore.updateIcon(deviceId.value, null, defaultURLBuilder(DEFAULT_ICON_URL, colorOption.value));
+	} catch (error) {
+		console.error('Failed to update default icon:', error);
+		Notify.create({
+			type: 'negative',
+			message: 'Failed to update default icon'
+		});
+	}
+};
+
+function defaultURLBuilder(iconUrl: string, newColor: string): string {
+	try {
+		// Check if the URL matches the expected pattern
+		if (!iconUrl.includes('marker-icon-')) {
+			return iconUrl;
 		}
 
-		return Object.entries(data as Record<string, unknown>).map(([key, value]) => {
-			const currentPath = path ? `${path}.${key}` : key;
+		// Extract the base URL and file extension
+		const baseUrl = iconUrl.substring(0, iconUrl.lastIndexOf('marker-icon-') + 'marker-icon-'.length);
+		const extension = iconUrl.substring(iconUrl.lastIndexOf('.'));
 
-			if (Array.isArray(value)) {
-				return {
-					label: key,
-					_id: currentPath,
-					children: value.map((item, index) => ({
-						label: `[${index}]`,
-						_id: `${currentPath}[${index}]`,
-						value: isPrimitive(item) ? item : undefined,
-						children: !isPrimitive(item) ? convertToNodes(item, `${currentPath}[${index}]`) : undefined
-					}))
-				};
-			}
-
-			if (value && typeof value === 'object') {
-				return {
-					label: key,
-					_id: currentPath,
-					children: convertToNodes(value, currentPath)
-				};
-			}
-
-			return {
-				label: key,
-				_id: currentPath,
-				value: value as DeviceValue
-			};
-		});
-	};
-	// Helper function to check if value is primitive
-	const isPrimitive = (value: unknown): value is PrimitiveValue => {
-		return (
-			typeof value === 'string' ||
-			typeof value === 'number' ||
-			typeof value === 'boolean' ||
-			value === null ||
-			value === undefined
-		);
-	};
-
-	return convertToNodes(obj);
+		// Construct the new URL with the desired color
+		return `${baseUrl}${newColor.toLowerCase()}${extension}`;
+	} catch (error) {
+		console.error('Error changing marker color:', error);
+		return iconUrl; // Return original URL if there's an error
+	}
 }
 
-const isArrayNode = (node: TreeNode): boolean => {
-	return node.children?.some(child => /^\[\d+\]$/.test(child.label)) ?? false;
-};
+const handleImageError = async () => {
+	if (!deviceId.value) return;
 
-const isArrayChild = (node: TreeNode): boolean => {
-	return /^\[\d+\]$/.test(node.label);
-};
-
-const addArrayItem = (node: TreeNode) => {
-	if (!editingDevice.value) return;
-
-	const pathParts = node._id.split('.');
-	const currentArray = pathParts.reduce((acc: Record<string, unknown>, key) => {
-		// Handle array index notation
-		const arrayMatch = key.match(/(\w+)\[(\d+)\]/);
-		if (arrayMatch) {
-			const [, arrayName] = arrayMatch;
-			return acc[arrayName] as Record<string, unknown>;
-		}
-		return acc[key] as Record<string, unknown>;
-	}, editingDevice.value as Record<string, unknown>);
-
-	if (Array.isArray(currentArray)) {
-		currentArray.push(null);
-
-		// Update the device property to trigger reactivity
-		deviceStore.updateDeviceProperty(pathParts, currentArray);
+	try {
+		await deviceStore.updateIcon(deviceId.value, null, null);
+	} catch (error) {
+		console.error('Failed to handle image error:', error);
 	}
 };
-
-const removeArrayItem = (node: TreeNode) => {
-
-	// Find the parent array node manually
-	const findParentArrayNode = (nodes: TreeNode[]): TreeNode | null => {
-		for (const n of nodes) {
-			if (n.children && n.children.includes(node)) {
-				return n;
-			}
-			if (n.children) {
-				const found = findParentArrayNode(n.children);
-				if (found) return found;
-			}
-		}
-		return null;
-	};
-
-	const parentNode = findParentArrayNode(deviceNodes.value);
-
-	if (!editingDevice.value || !parentNode) {
-		console.log('Cannot remove item - no parent found');
-		return;
-	}
-
-	// Extract the array path
-	const arrayPathParts = parentNode._id.split('.');
-
-	// Retrieve the current array
-	const currentArray = arrayPathParts.reduce((acc: Record<string, unknown>, key) => {
-		const arrayMatch = key.match(/(\w+)\[(\d+)\]/);
-		if (arrayMatch) {
-			const [, arrayName] = arrayMatch;
-			return acc[arrayName] as Record<string, unknown>;
-		}
-		return acc[key] as Record<string, unknown>;
-	}, editingDevice.value as Record<string, unknown>);
-
-	if (Array.isArray(currentArray)) {
-		// Extract the actual index from the node's label
-		const indexMatch = node.label.match(/\[(\d+)\]/);
-		if (!indexMatch) {
-			console.log('No index match found');
-			return;
-		}
-
-		const indexToRemove = parseInt(indexMatch[1], 10);
-
-		// Remove the item at the specified index
-		currentArray.splice(indexToRemove, 1);
-
-		// Update the device property to trigger reactivity
-		deviceStore.updateDeviceProperty(arrayPathParts, currentArray);
-
-		// Refresh the tree nodes
-		if (parentNode.children) {
-			parentNode.children = parentNode.children
-				.filter(child => child._id !== node._id)
-				.map((child, newIndex) => ({
-					...child,
-					label: `[${newIndex}]`,
-					_id: `${parentNode._id}[${newIndex}]`
-				}));
-		}
-	}
-};
-/*
-	Date handling
-*/
-
-// Update the isDateValue function
-const isDateValue = (value: unknown): boolean => {
-	if (typeof value === 'string') {
-		const dateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
-		return dateRegex.test(value);
-	}
-	return false;
-};
-
-
-watch(deviceLoaded, (loaded) => {
-	if (!loaded) return;
-	if (editingDevice.value === null) {
-		// Use route.params.id if editingDevice is null
-		// Refreshing on the edit page, or enter url directly would enter this route
-		const deviceIdFromRoute = route.params.id;
-		const deviceId = Array.isArray(deviceIdFromRoute) ? deviceIdFromRoute[0] : deviceIdFromRoute; // Take the first element if it's an array
-		deviceStore.setEditingDeviceByID(deviceId as string); // Ensure type safety with type assertion
-	}
-}, { immediate: true });
-
-const DEFAULT_ICON_URL = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png';
-
-// This watch handles updating the tree and setting up the default icon URL.
-let updatingDevice = false;
-
-watch(
-	editingDevice,
-	(newDevice) => {
-		if (updatingDevice) return; // Prevent recursion
-		updatingDevice = true;
-		if (newDevice) {
-			deviceNodes.value = objectToTree(newDevice);
-			// Only set default icon if iconUrl is missing or is the default
-			if (!newDevice.iconUrl || newDevice.iconUrl === 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png') {
-				deviceStore.updateDeviceProperty(['iconUrl'], DEFAULT_ICON_URL); // This triggers reactivity
-			}
-		} else {
-			deviceNodes.value = []; // Clear nodes if editingDevice is null
-		}
-		nextTick(() => {
-			updatingDevice = false; // Reset the flag after reactivity settles
-		});
-	},
-	{ immediate: true }
-);
-
-// When initializing the tree, add parent references
-const addParentReferences = (nodes: TreeNode[], parent?: TreeNode) => {
-	nodes.forEach(node => {
-		if (parent) {
-			node.parent = parent;
-		}
-		if (node.children) {
-			addParentReferences(node.children, node);
-		}
-	});
-};
-
-onMounted(async () => {
-	addParentReferences(deviceNodes.value);
-});
 
 </script>
 
-<style scoped>
-.device-edit-header {
-	border-bottom: 1px solid #ddd;
-}
-
-.buttons {
+<style lang="scss" scoped>
+.form-container {
 	display: flex;
-	gap: 8px;
+	justify-content: center;
+	padding: 24px;
+	background-color: #f5f5f5;
 }
 
-.tree-controls {
-	display: flex;
-	gap: 10px;
-	margin-bottom: 10px;
+.form-wrapper {
+	width: 100%;
+	max-width: 600px;
+	background: white;
+	border-radius: 8px;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.hide {
-	display: none;
+.header-section {
+	padding: 16px;
+	border-bottom: 1px solid #e0e0e0;
 }
 
-.modified-field {
-	background-color: #fff3e0;
-	border-color: #fb8c00 !important;
+.settings-form {
+	padding: 24px;
+}
+
+.form-section {
+	margin-bottom: 32px;
+
+	&:last-child {
+		margin-bottom: 0;
+	}
+}
+
+.section-title {
+	font-size: 1.1rem;
+	font-weight: 500;
+	color: #333;
+	margin-bottom: 16px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid #eee;
+}
+
+.form-field {
+	margin-bottom: 16px;
+	max-width: 400px;
+
+	&:last-child {
+		margin-bottom: 0;
+	}
+}
+
+// Responsive adjustments
+@media (max-width: 600px) {
+	.form-container {
+		padding: 16px;
+	}
+
+	.form-wrapper {
+		border-radius: 0;
+	}
+
+	.settings-form {
+		padding: 16px;
+	}
 }
 </style>

@@ -1,4 +1,5 @@
 <template>
+
 	<q-table title="Devices" :rows="devices" :columns="columns" 
 		:rows-per-page-options="[10, 25, 50, 100, 0]" row-key="_id" @row-click="handleRowClick"
 		@mouseover="handleRowMouseover" @mouseout="handleRowMouseout">
@@ -251,7 +252,7 @@ const convertToMetric = (value: number | null | undefined, unit: string | null |
 const router = useRouter();
 const goToEditDevice = (device: Device) => {
 	deviceStore.setEditingDevice(device);
-	router.push(`/devices/${device._id}`); // Or your edit route
+	router.push(`/devices/${device.device_id}`); // Or your edit route
 };
 
 /*
@@ -279,7 +280,7 @@ watch(selectedDeviceId, (newSelectedDeviceId) => {
 	icon
 */
 
-const DEFAULT_ICON_PREFIX = 'raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-';
+const DEFAULT_ICON_PREFIX = 'raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-';
 const DEFAULT_ICON_URL = 'https://' + DEFAULT_ICON_PREFIX + 'blue.png';
 
 

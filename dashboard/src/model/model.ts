@@ -3,7 +3,7 @@ export interface Device {
 	activated_at: string | null;
 	active_state: string;
 	bcc_id: string;
-	color?: string;  
+	color?: string;
 	iconUrl?: string;
 	conn_data: {
 		auth_token: string;
@@ -42,6 +42,68 @@ export interface Device {
 	// Additional properties for the custom object
 	[key: string]: string | number | boolean | Date | object | undefined | null;
 }
+export interface DeviceSettings {
+	_id: string;
+	device_id: string;
+	iconUrl?: string;
+	version: number;
+	updated_at?: string;
+	begin_moving_speed: {
+		value: number;
+		unit: string;
+		display: string;
+	};
+	begin_stopped_speed: {
+		value: number;
+		unit: string;
+		display: string;
+	};
+	max_drift_distance: {
+		value: number;
+		unit: string;
+		display: string;
+	};
+	min_num_satellites: number;
+	ignore_unset_min_num_sats: boolean;
+	max_hdop: number;
+	drive_timeout: {
+		value: number;
+		unit: string;
+		display: string;
+	};
+	stop_timeout: {
+		value: number;
+		unit: string;
+		display: string;
+	};
+	offline_timeout: {
+		value: number;
+		unit: string;
+		display: string;
+	};
+	history_calc_duration: {
+		value: number;
+		unit: string;
+		display: string;
+	};
+	fuel_consumption: {
+		calculation_method: string;
+		measurement: string;
+		fuel_type: string;
+		fuel_cost: number;
+		fuel_economy: number;
+	};
+	initial_device_point_delete_cutoff_time: string;
+	engine_hours_counter_config: string;
+	use_v3_engine_hours: boolean;
+	history_retention_days: number;
+	harsh_event_min_speed: {
+		value: number;
+		unit: string;
+		display: string;
+	};
+
+}
 
 export interface DevicePoint {
 	conn_data: {
@@ -64,12 +126,12 @@ export interface DevicePoint {
 }
 
 export interface DevicePointDetail {
-    speed?: { value: number; unit: string; display: string };
+	speed?: { value: number; unit: string; display: string };
 }
 
 export interface UserPreferences {
 	version: number;
-    userID: string;
-    DeviceListWidth: number; 
-    unit: 'original' | 'metric' | 'imperial';
+	userId: string;
+	DeviceListWidth: number;
+	unit: 'original' | 'metric' | 'imperial';
 }

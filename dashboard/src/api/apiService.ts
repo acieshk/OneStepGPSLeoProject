@@ -1,7 +1,7 @@
-import { Device, UserPreferences } from 'src/model/model';
+import { Device, DeviceSettings, UserPreferences } from 'src/model/model';
 
 const config = {
-	userId: 'default',
+	userID: 'default',
 	api: {
 		baseUrl: 'http://localhost',
 		port: 8080,
@@ -15,6 +15,14 @@ const config = {
 
 	}
 };
+
+interface CheckForUpdatesResponse {
+	needsUpdate: boolean;
+    updatedDevices: Device[]; // Array of Device objects
+	lastUpdate: string;
+	icon_map: {[key:string]: string} | null;
+
+}
 
 class ApiService {
 	private static instance: ApiService;
@@ -91,14 +99,50 @@ class ApiService {
 
 
 	async getUserPreferences(userId: string): Promise<UserPreferences> {
-		const url = `${this.baseUrl}/api/users/${userId}/preferences`;
+		const url = `${this.baseUrl}/api/users/${userId}/preferences`; // Correct URL structure
+	
 		try {
 			const response = await fetch(url);
 			if (!response.ok) {
-				//backend should always return an default user
-				throw await this.handleError(response);
+				if (response.status === 404) { // Handle 404 (Not Found) - create default preferences
+					console.log('User preferences not found, creating default...')
+					const defaultPrefs: UserPreferences = { // Initialize with default values
+						userId: userId,
+						version: 1, // Initialize version.
+						DeviceListWidth: 400,
+						unit: 'original',
+					};
+	
+					// Try to save default preferences. Log a warning or throw error here if you want different behavior.
+	
+					try {
+	
+						const newPrefs = await this.saveUserPreferences(defaultPrefs); //Try saving default prefs, and return the result
+						return newPrefs
+	
+					} catch (error) {
+						//If failed to create default preferences, log message. This may happen
+						//if database has issue or if saveUserPreferences have error during default values handling.
+						console.warn('Failed to save default user preferences', error);
+						return defaultPrefs; //Return defaultPrefs and continue
+					}
+				}
+	
+	
+	
+				throw await this.handleError(response)
+	
+	
 			}
-			return await response.json() as UserPreferences;
+	
+	
+	
+			// Parse the response JSON and return as UserPreferences
+			const preferences = await response.json() as UserPreferences;
+	
+	
+			return preferences;
+	
 		} catch (error) {
 			console.error('Error getting user preferences:', error);
 			throw error;  // Re-throw for handling in component
@@ -106,8 +150,11 @@ class ApiService {
 	}
 
 	async saveUserPreferences(preferences: UserPreferences): Promise<UserPreferences> {
+		const url = `${this.baseUrl}/api/users/${preferences.userId}/preferences`; // Use the correct URL structure with userID
+		console.log('Saving user preferences');
+		console.log(preferences);
 		try {
-			const response = await fetch(`${config.api.baseUrl}:${config.api.port}${config.api.endpoints.userPreferences}`, {
+			const response = await fetch(url, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(preferences),
@@ -125,33 +172,71 @@ class ApiService {
 		}
 	}
 
-	async removeDeviceIcon(deviceId: string): Promise<unknown> {
-		const response = await fetch(`${this.baseUrl}/devices/${deviceId}/icon?remove=true`, {
-			method: 'POST',
-		});
-		if (!response.ok) {
-			throw new Error('Failed to remove icon');
-		}
-		return await response.json();
-	}
-
-	async uploadDeviceIcon(deviceId: string, iconFile: File): Promise<{ iconUrl: string }> {
+	async removeDeviceIcon(deviceId: string): Promise<{iconUrl: string, version: number}> {
 		try {
-			const formData = new FormData();
-			formData.append('file', iconFile);
-			const response = await fetch(`${this.baseUrl}/devices/${deviceId}/icon`, {
-				method: 'POST',
-				body: formData
+			const response = await fetch(`${this.baseUrl}/api/devices/${deviceId}/icon?remove=true`, {
+				method: 'POST', //Use POST
 			});
-            if (!response.ok) {
-                throw await this.handleError(response); 
-            }
-			return { iconUrl: `${this.baseUrl}/icons/${deviceId}.png` };
+			if (!response.ok) {
+				throw await this.handleError(response);
+			}
+	
+			const data = await response.json() as {iconUrl: string, message?:string, version: number};  // Return version as well
+	
+			if (data.message) {
+				console.log(data.message);
+			}
+			//Return iconURL and version after removing icon.
+			return { iconUrl: data.iconUrl, version: data.version }; 
 		} catch (error) {
-			console.error('Error uploading device icon:', error);
+			console.error('Error removing icon:', error);
 			throw error;
 		}
 	}
+
+	async uploadDeviceIcon(deviceId: string, iconFile: File | null, defaultIcon: string | null): Promise<{ iconUrl: string, version: number }> { // Correct return type
+		try {
+			const formData = new FormData();
+			if (iconFile) {
+				formData.append('file', iconFile);
+			}
+	
+			if (defaultIcon) {
+				formData.append('defaultIcon', defaultIcon);
+			}
+	
+			//Use removeIcon if removing
+			if(iconFile === null && defaultIcon === null) {
+				console.log('Removing icon')
+	
+				return await this.removeDeviceIcon(deviceId) as {iconUrl: string, version: number}; //Remove icon and return
+			}
+	
+			const response = await fetch(`${this.baseUrl}/api/devices/${deviceId}/icon`, {
+				method: 'POST',
+				body: formData,
+			});
+	
+			if (!response.ok) {
+	
+				throw await this.handleError(response);
+			}
+			// Correctly parse response and return iconURL and version.  Assume version is always returned
+			const data = await response.json() as { iconUrl: string, message?: string, version: number };
+			if (data.message) {
+				console.log(data.message);
+			}
+	
+	
+	
+			//Return both iconURL and version
+			return { iconUrl: data.iconUrl, version: data.version };
+		} catch (error) {
+			console.error('Error uploading device icon:', error);
+			throw error; // Re-throw for component to handle
+		}
+	}
+	
 
 	// return path of the icon, or null if icon is not found
 	async getIcon(deviceId: string): Promise<string | null> {
@@ -174,7 +259,8 @@ class ApiService {
 		}
 	}
 
-	async checkForUpdates(lastUpdate: string | null): Promise<{ needsUpdate: boolean; lastUpdate: string; updatedDevices: Device[] }> {
+	
+	async checkForUpdates(lastUpdate: string | null): Promise<CheckForUpdatesResponse> {
         const url = `${this.baseUrl}/api/devices/check-updates?lastUpdate=${lastUpdate || '1970-01-01T00:00:00Z'}`; // Provide default timestamp
 
         try {
@@ -182,7 +268,7 @@ class ApiService {
             if (!response.ok) {
                 throw await this.handleError(response); 
             }
-            return await response.json() as { needsUpdate: boolean; lastUpdate: string; updatedDevices: Device[] };
+            return await response.json() as CheckForUpdatesResponse;
         } catch (error) {
             console.error('Error checking for updates:', error);
             throw error; 
@@ -205,6 +291,51 @@ class ApiService {
 			return new Error(`Network response was not ok ${response.status}`);
         }
     }
+
+	async getDeviceSettings(deviceId: string): Promise<DeviceSettings> {
+        const url = `${this.baseUrl}/api/devices/${deviceId}/settings`; // Correct URL
+		console.log(url);
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw await this.handleError(response);
+            }
+			
+
+			//Parse timestamp if needed from returned settings. This assumes backend adds timestamp
+			//to the returned settings
+            const settings = await response.json() as DeviceSettings;
+            return settings;
+
+        } catch (error) {
+            console.error('Error getting device settings:', error);
+            throw error; // Re-throw for component to handle
+        }
+    }
+
+    async saveDeviceSettings(settings: DeviceSettings): Promise<DeviceSettings> {
+        const url = `${this.baseUrl}/api/devices/${settings.device_id}/settings`;  // Include deviceId in URL
+		console.log('SAVE device settings');
+        try {
+            const response = await fetch(url, {
+                method: 'PUT',  
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(settings),
+            });
+
+            if (!response.ok) {
+                throw await this.handleError(response);
+            }
+
+            return await response.json() as DeviceSettings; // Return the updated settings from the server
+        } catch (error) {
+            console.error('Error saving device settings:', error);
+            throw error;  // Re-throw for component error handling
+        }
+    }
+
 }
 
 export const apiService = ApiService.getInstance();

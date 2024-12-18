@@ -6,8 +6,10 @@
     "mongodb_password": "",
     "database_name": "onestepgps",  
     "device_collection_name": "device_data",
+	"device_setting_collection_name": "device_setting",
     "user_collection_name": "user_preferences", 
+	"icon_dir": "icons",
     "api_url": "https://track.onestepgps.com/v3/api/public/device?latest_point=true&api-key=",
     "api_key": "oUFJLAi7YeGOgFyAr8d4_TkX_2GpFJnJi64xUem_d2k",
-	"update_interval_seconds": 10
+	"update_interval_seconds": 1000
 }

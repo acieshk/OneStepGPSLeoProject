@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia';
-import { Device, DevicePoint } from 'src/model/model';
+import { Device, DevicePoint, DeviceSettings } from 'src/model/model';
 import { apiService } from 'src/api/apiService';
-import { ref } from 'vue';
-// import { useUserStore } from './userStore';
+import { Ref, ref } from 'vue';
+import { Notify } from 'quasar';
 
 export type PrimitiveValue = string | number | boolean | null | undefined;
 export type DeviceValue = PrimitiveValue | Record<string, unknown> | unknown[];
@@ -19,48 +19,114 @@ export const useDeviceStore = defineStore('device', () => {
 	const mapReady = ref(false);
 	const mapIconVisibility = ref(new Map<string, boolean>());
 	const lastUpdate = ref('1970-01-01T00:00:00Z'); // RFC3339
-	const pollingInterval = ref(10000); // 10 seconds
+	const pollingInterval: Ref<number | null> = ref(10000); // 10 seconds
+    const deviceSettings = ref<DeviceSettings | null>(null); 
+    const deviceSettingsLoaded = ref(false);  
+    const deviceSettingsLoading = ref(false);
+	const pollingActive = ref(false);
 
+    const mergeUpdatedDevices = (updatedDevices: Device[], iconMap: {[key: string]: string} | null) => {
+        if (!updatedDevices || updatedDevices.length === 0) {
+            // Handle empty or null updatedDevices appropriately. Log a message or return early.
+			if (!updatedDevices){
+				console.log('updatedDevices is null or undefined, skipping merge')
+			} else if (updatedDevices.length === 0){
+				console.log('No updated devices received, skipping merge');
+			}
 
-	const mergeUpdatedDevices = (updatedDevices: Device[]) => {
-		if (!updatedDevices || updatedDevices.length === 0) return; //Skip if array is empty or does not exist. Add log if needed
+            if(iconMap) { // Update iconUrl from iconMap even if updatedDevices is empty.
+                console.log(iconMap);
+				devices.value.forEach(device => {
+					device.iconUrl = iconMap[device.device_id];
+                });
+            }
+			devices.value = [...devices.value]; // Trigger reactivity
+			return; // Return early to avoid errors
+        }
 
-		const updatedDeviceMap = updatedDevices.reduce((map, device) => {
-			if (typeof device.device_id === 'string') { 
-				map[device.device_id] = device;
+		// Create a map of updated devices for efficient lookup
+        const updatedDeviceMap = updatedDevices.reduce((map, device) => {
+            if (typeof device.device_id === 'string') { // Ensure device_id is a string
+                map[device.device_id] = device;
 				return map;
-			} else {
-				console.error('device_id not found or invalid type for device', device) // Log error if device_id is invalid
+            } else {
+				console.warn('Invalid device_id format, skipping device:', device) // Log error if invalid device_id
 				return map;
 			}
-		}, {} as { [key: string]: Device });
+        }, {} as { [key: string]: Device });
 
-		devices.value = devices.value.map(device => {
-			if (updatedDeviceMap[device.device_id]) {
-				const updatedDevice = updatedDeviceMap[device.device_id];
-				return { ...device, ...updatedDevice }; //Merge updated properties, keep others
-			}
-			return device;
-		});
-	};
-	const startPolling = async () => {
-		const poll = async () => {
-			console.log('polling');
-			try {
-				const response = await apiService.checkForUpdates(lastUpdate.value || '1970-01-01T00:00:00Z'); // Provide initial value
+		// Iterate through existing devices and merge updates
+        devices.value.forEach((device) => {
+			// Correctly access updated device from map
+            const updatedDevice = updatedDeviceMap[device.device_id as string]; // Access updated device by ID
 
-				if (response.needsUpdate) {
-					lastUpdate.value = response.lastUpdate;
-					mergeUpdatedDevices(response.updatedDevices);
+			// Merge if an updated device exists for this ID, and if updatedDevice is not null/undefined
+            if (updatedDevice) {
+
+				device.updated_at = updatedDevice.updated_at || device.updated_at; // Correctly merge updated_at
+				device.online = updatedDevice.online ?? device.online;       // Correctly merge online, using nullish coalescing operator (??)
+				device.latest_device_point = updatedDevice?.latest_device_point || device.latest_device_point;
+				device.latest_accurate_device_point = updatedDevice?.latest_accurate_device_point || device.latest_accurate_device_point;
+                // Correctly set iconURL from iconMap
+				if (iconMap) {
+
+                    const iconURL = iconMap[device.device_id as string];
+
+                    if(iconURL){ //Only set iconURL if it exists in the iconMap
+                        device.iconUrl = iconURL
+                    }
 				}
-			} catch (error) {
-				console.error('Polling error', error)
-			}
-		};
+            }
+        });
+        devices.value = [...devices.value]; // Trigger reactivity
+    };
+	const poll = async () => {
+		console.log('polling');
+		try {
+		  const response = await apiService.checkForUpdates(lastUpdate.value);
+		  lastUpdate.value = response.lastUpdate;
+		  mergeUpdatedDevices(response.updatedDevices, response.icon_map);
+		} catch (error) {
+		  console.error('Polling error', error);
+		}
+	  };
+	
+	  const startPolling = async () => {
+		// If polling is already active, just trigger an immediate poll
+		if (pollingActive.value) {
+		  await poll();
+		  return;
+		}
+	
+		pollingActive.value = true;
 		
-		loadDevices(); //Load devices initially before starting polling
-		setInterval(poll, pollingInterval.value);
-	};
+		try {
+		  await loadDevices();
+		  // Initial poll
+		  await poll();
+		  
+		  // Clear any existing interval
+		  if (pollingInterval.value) {
+			clearInterval(pollingInterval.value);
+		  }
+		  
+		  // Set up regular polling interval (10 seconds)
+		  pollingInterval.value = window.setInterval(() => {
+			poll();
+		  }, 10000);
+		} catch (error) {
+		  pollingActive.value = false;
+		  return;
+		}
+	  };
+	
+	  const stopPolling = () => {
+		if (pollingInterval.value) {
+		  clearInterval(pollingInterval.value);
+		  pollingInterval.value = null;
+		}
+		pollingActive.value = false;
+	  };
 
 
 
@@ -106,26 +172,62 @@ export const useDeviceStore = defineStore('device', () => {
 		return typeof obj === 'object' && obj !== null;
 	}
 
-	async function updateDevice(updatedDevice: Device) {
-		console.log(updatedDevice);
-		if (!editingDevice.value) {
-			console.error('No device to save. editingDevice is null.');
-			return; // Or throw an error if appropriate
-		}
+	async function fetchDeviceSettings(deviceId: string) {
+		console.log('Fetching device settings', deviceId);
+		
+		if (!deviceId) return; // Handle null deviceId
+
+		// If settings are already loaded or loading, return early
+		if (deviceSettingsLoaded.value || deviceSettingsLoading.value) return;
+
+		deviceSettingsLoading.value = true;
+		deviceSettingsLoaded.value = false;
+
 		try {
-			const updatedDevice = editingDevice.value;
+			console.log('Fetching device settings');
+			const settings = await apiService.getDeviceSettings(deviceId);
+			console.log('fetched');
+			deviceSettings.value = settings; // Directly set the settings object
+			console.log(deviceSettings.value);
+			deviceSettingsLoaded.value = true;
+		} catch (error) {
+			console.error(`Failed to load settings for ${deviceId}: `, error);
+			deviceSettings.value = null; // Reset settings if there is an error to prevent stale settings showing in edit page.
 
-			// Find the device in the array by _id
-			const deviceIndex = devices.value.findIndex((d) => d._id === updatedDevice._id);
-
-			if (deviceIndex !== -1) {
-				// Update the device in the array using splice to maintain reactivity:
-				devices.value.splice(deviceIndex, 1, updatedDevice);
-			}
-			await apiService.updateDevice(updatedDevice._id, updatedDevice);
+		} finally {
+			deviceSettingsLoading.value = false;
 		}
-		catch (error) {
-			console.error('Error updating device in store:', error);
+	}
+
+	async function saveDeviceSettings(settings: DeviceSettings) {
+		if (!settings.device_id) return;
+	
+		deviceSettingsLoading.value = true;
+	
+		try {
+			const updatedSettings = await apiService.saveDeviceSettings(settings);
+			deviceSettings.value = updatedSettings;
+	
+			Notify.create({
+				type: 'positive',
+				message: 'Settings saved successfully',
+				position: 'top'
+			});
+	
+		} catch (error) {
+			console.error(`Failed to update settings for ${settings?.device_id}: `, error);
+	
+			// Simplified error handling
+			Notify.create({
+				type: 'negative',
+				message: error instanceof Error ? error.message : 'An unexpected error occurred',
+				caption: 'Please try again later',
+				position: 'top',
+				timeout: 5000
+			});
+		
+		} finally {
+			deviceSettingsLoading.value = false;
 		}
 	}
 
@@ -229,61 +331,57 @@ export const useDeviceStore = defineStore('device', () => {
 		editingDevice.value = updatedDevice;
 	}
 
-    async function updateIcon(deviceId: string, iconFile: File | null, iconPath: string | null) {
-        try {
-            deviceLoading.value = true;
-
-            if (iconFile) {  // Handle file upload
-                const response = await apiService.uploadDeviceIcon(deviceId, iconFile);
-				const newIconURL = response.iconUrl; // or however your API returns the URL
-
-				if (!newIconURL) {
-					throw new Error('API did not return an icon URL after upload.');
-				}
-
-                // Update iconUrl in editingDevice and devices array
-                editingDevice.value!.iconUrl = newIconURL;
-				const deviceIndex = devices.value.findIndex(d => d._id === deviceId);
-				if (deviceIndex !== -1) {
-					devices.value[deviceIndex].iconUrl = newIconURL;
-                    devices.value = [...devices.value]; // Trigger reactivity for devices array
-				}
-
-            } else if (iconPath) { // Update existing Device
-				const deviceIndex = devices.value.findIndex(d => d._id === deviceId);
-				if (deviceIndex !== -1) {
-                    devices.value[deviceIndex].iconUrl = iconPath;
-                    devices.value = [...devices.value]; // Trigger reactivity
-                }
-            } else {
-                editingDevice.value!.iconUrl = '';
-				const deviceIndex = devices.value.findIndex(d => d._id === deviceId);
-				if (deviceIndex !== -1) {
-					devices.value[deviceIndex].iconUrl = '';
-                    devices.value = [...devices.value]; // Trigger reactivity for devices array
-				}
-				await apiService.removeDeviceIcon(deviceId);
+	async function updateIcon(deviceId: string, iconFile: File | null, defaultIcon: string | null) {
+		if (!deviceId || !deviceSettings.value) {
+			console.warn('Cannot update icon:', !deviceId ? 'deviceId is null' : 'deviceSettings not found in store');
+			return;
+		}
+		
+		try {
+			let response;
+			if (iconFile) {
+				response = await apiService.uploadDeviceIcon(deviceId, iconFile, null);
+			} else if (defaultIcon) {
+				response = await apiService.uploadDeviceIcon(deviceId, null, defaultIcon);
+			} else {
+				response = await apiService.uploadDeviceIcon(deviceId, null, null);
 			}
+			deviceSettingsLoaded.value = false; //refetch the device
+			// Update the store with the new settings
+			await fetchDeviceSettings(deviceId);
+			deviceSettings.value.iconUrl = response.iconUrl; //Set new iconURL
+			deviceSettings.value.version = response.version; //Update version of settings
 
-        } catch (error) {
-			console.error('Error updating icon:', error);
-        } finally {
-            deviceLoading.value = false;
-        }
-    }
+			// After successful update and after updating store's deviceSettings, trigger polling.
+			// Trigger polling by calling the poll function directly.
+			startPolling(); // Trigger poll after icon update
 
 
+			// Notify success
+			Notify.create({
+				type: 'positive',
+				message: 'Icon updated successfully'
+			});
+		} catch (error) {
+			console.error('Failed to update icon:', error);
+			Notify.create({
+				type: 'negative',
+				message: 'Failed to update icon'
+			});
+		}
+	}
+	
 	return {
 		//states
 		deviceLoaded, deviceLoading, devices, selectedDeviceId,
 		hoveredDeviceId, editingDevice, mapReady, mapIconVisibility,
-		pollingInterval, lastUpdate,
+		pollingInterval, lastUpdate, deviceSettings, deviceSettingsLoaded, deviceSettingsLoading,
 
 		//actions
 		mergeUpdatedDevices, startPolling, loadDevices, selectDevice, 
 		deselectDevice, setMapReady,
 		setHoveredDevice, toggleDeviceVisibility, setMapIconVisibility,
 		setEditingDevice, setEditingDeviceByID, updateDeviceProperty,
-		updateDevice, updateIcon
+		updateIcon, fetchDeviceSettings, saveDeviceSettings, stopPolling
 	};
 });

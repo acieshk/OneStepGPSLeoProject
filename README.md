@@ -47,15 +47,21 @@ go mod download
 Edit the config.json file in the server directory and configure the following settings:
 ```json
 {
-  "server_port": "8080",
-  "mongodb_url": "your_mongodb_url",
-  "mongodb_port": "27017",
-  "database_name": "onestepgps",  
-  "device_collection_name": "device_data",
-  "user_collection_name": "user_preferences", 
-  "api_url": "onestepgps_api_url",
-  "api_key": "your_onestepgps_api_key"
+    "server_port": "8080",
+    "mongodb_url": "localhost",
+    "mongodb_port": "27017",
+    "mongodb_username": "",
+    "mongodb_password": "",
+    "database_name": "onestepgps",  
+    "device_collection_name": "device_data",
+	"device_setting_collection_name": "device_setting",
+    "user_collection_name": "user_preferences", 
+	"icon_dir": "icons",
+    "api_url": "https://track.onestepgps.com/v3/api/public/device?latest_point=true&api-key=",
+    "api_key": "",
+	"update_interval_seconds": 10
 }
+
 
 ```
 Failed to load config: APIKey is missing in config.json

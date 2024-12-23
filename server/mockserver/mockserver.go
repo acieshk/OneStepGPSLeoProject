@@ -2,6 +2,7 @@
 package mockserver
 
 import (
+	"OneStepGPSLeo/common"
 	"OneStepGPSLeo/models"
 	"bytes"
 	"encoding/json"
@@ -66,15 +67,15 @@ func (ds *Datastore) GetDevices() []map[string]interface{} {
 	return devicesCopy
 }
 
-// StartMockServer starts the mock server.
 func StartMockServer(config models.Config, port string, updateInterval time.Duration, mutateChance float64, mutateDeviceCount int) {
 	datastore := NewDatastore()
 
-	err := initializeMockDevicesFromAPI(datastore, config)
+	err := initializeMockDevicesFromLocal(datastore)
 	if err != nil {
-		log.Fatalf("Failed to initialize mock devices from API: %v", err)
+		log.Fatalf("Failed to initialize mock devices: %v", err)
 	}
 
+	// Rest of the function remains the same
 	go updateMockDevices(datastore, updateInterval, mutateChance, mutateDeviceCount)
 
 	router := gin.Default() // Create a Gin router
@@ -134,7 +135,21 @@ func initializeMockDevicesFromAPI(datastore *Datastore, config models.Config) er
 
 }
 
-// updateMockDevices (Updated)
+func initializeMockDevicesFromLocal(datastore *Datastore) error {
+	devices, err := common.ReadDevicesFromJSON("result.json")
+	if err != nil {
+		return err
+	}
+
+	for _, device := range devices {
+		datastore.AddDevice(device)
+	}
+
+	log.Printf("Initialized %d mock devices from local file.\n", len(datastore.GetDevices()))
+	return nil
+}
+
+// updateMockDevices
 func updateMockDevices(datastore *Datastore, updateInterval time.Duration, mutateChance float64, mutateDeviceCount int) {
 	for {
 		time.Sleep(updateInterval)

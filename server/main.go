@@ -111,21 +111,21 @@ func loadConfig(filename string) (models.Config, error) {
 	}
 	defer file.Close()
 
-	decoder := json.NewDecoder(file) // Use json.NewDecoder
+	decoder := json.NewDecoder(file)
 	err = decoder.Decode(&config)
 	if err != nil {
 		return config, err
 	}
 
-	if config.APIKey == "" {
-		return config, fmt.Errorf("APIKey is missing in config.json")
-	}
-	if config.APIURL == "" {
-		return config, fmt.Errorf("APIURL is missing in config.json")
-	}
-	// Set a default update interval if not specified in config.json
+	// Set default values
 	if config.UpdateInterval == 0 {
-		config.UpdateInterval = 60 // Default to 5 minutes (300 seconds)
+		config.UpdateInterval = 60
+	}
+	if config.MockServerPort == "" {
+		config.MockServerPort = "8081"
+	}
+	if config.ServerPort == "" {
+		config.ServerPort = "8080"
 	}
 
 	return config, nil

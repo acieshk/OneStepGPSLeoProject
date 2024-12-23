@@ -37,22 +37,12 @@ type CheckForUpdatesResponse struct {
 	IconMap        map[string]string        `json:"icon_map"`
 }
 
-// FetchAndStoreDevices fetches device data from the external API and updates the database.
-// It handles both inserting new devices and updating existing ones, including their settings.
 func FetchAndStoreDevices(db *database.MongoDB, config models.Config, updateMutex *sync.RWMutex, lastUpdateTimes map[string]time.Time, lastChecked *time.Time) {
-	// API fetching and response handling
-	log.Printf("Fetching device data from the external API")
-	apiURL := fmt.Sprintf("%s%s", config.APIURL, config.APIKey)
-	resp, err := http.Get(apiURL)
+	// Read from local result.json file
+	log.Printf("Reading device data from local result.json file")
+	body, err := ioutil.ReadFile("result.json")
 	if err != nil {
-		log.Printf("Error fetching from API: %v", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("Error reading response body: %v", err)
+		log.Printf("Error reading result.json: %v", err)
 		return
 	}
 
@@ -80,10 +70,11 @@ func FetchAndStoreDevices(db *database.MongoDB, config models.Config, updateMute
 			continue
 		}
 
+		// Set updated_at to current time if not present
 		updatedAtStr, ok := device["updated_at"].(string)
 		if !ok {
-			log.Printf("Error: updated_at not found or not a string for device %s: %+v", deviceID, device)
-			continue
+			updatedAtStr = time.Now().Format(time.RFC3339)
+			device["updated_at"] = updatedAtStr
 		}
 
 		updatedAt, err := time.Parse(time.RFC3339, updatedAtStr)
@@ -139,10 +130,8 @@ func FetchAndStoreDevices(db *database.MongoDB, config models.Config, updateMute
 				}
 
 				if settingsOK {
-					// Check if settings already exist for this device
 					existingSettings, err := db.GetDeviceSettings(deviceID)
 					if err != nil || existingSettings == (models.DeviceSettings{}) {
-						// Only save settings if they don't exist
 						settings, err = db.SaveDeviceSettings(settings)
 						if err != nil {
 							log.Printf("Failed to update device settings for device %s: %v\n", deviceID, err)
@@ -246,7 +235,6 @@ func buildIconMap(db *database.MongoDB, currentDevices map[string]primitive.Obje
 // New helper function to fetch updated devices efficiently. Fetches only the fields you need.
 func fetchUpdatedDevicesSince(db *database.MongoDB, config models.Config, since time.Time, lastUpdateTimes map[string]time.Time) ([]map[string]interface{}, error) {
 
-	
 	collection := db.Client.Database(config.DatabaseName).Collection(config.DeviceCollectionName)
 
 	projection := bson.D{
